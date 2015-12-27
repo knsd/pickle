@@ -167,7 +167,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         },
         139 => {
             let length = try!(rd.read_i32::<LittleEndian>());
-            OpCode::Long1(try!(read_long(rd, length as usize)))
+            OpCode::Long4(try!(read_long(rd, length as usize)))
 
         },
         c => return Err(Error::UnknownOpcode(c)),
@@ -242,5 +242,8 @@ mod tests {
     #[test]
     fn test_long4() {
         t!(b"\x8b\x0a", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x8b\x01\x00\x00\x00\x0a", Ok(OpCode::Long4(n)), assert_eq!(n, FromPrimitive::from_usize(10).unwrap()));
+        t!(b"\x8b\x01\x00\x00\x00\xf6", Ok(OpCode::Long4(n)), assert_eq!(n, FromPrimitive::from_isize(-10).unwrap()));
+        t!(b"\x8b\x02\x00\x00\x00.\xfb", Ok(OpCode::Long4(n)), assert_eq!(n, FromPrimitive::from_isize(-1234).unwrap()));
     }
 }
