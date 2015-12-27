@@ -107,6 +107,8 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::Int(try!(try!(from_utf8(init)).parse()))
         },
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
+        75 => OpCode::BinInt1(try!(rd.read_u8())),
+        77 => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -143,5 +145,19 @@ mod tests {
     fn test_bin_int() {
         t!(b"J\x0a", Err(Error::ReadError(_)), assert!(true));
         t!(b"J\x0a\x00\x00\x00", Ok(OpCode::BinInt(n)), assert_eq!(n, 10));
+        t!(b"J\x0a\x00\x00\x01", Ok(OpCode::BinInt(n)), assert_eq!(n, 16777226));
+    }
+
+    #[test]
+    fn test_bin_int1() {
+        t!(b"K", Err(Error::ReadError(_)), assert!(true));
+        t!(b"K\x0a", Ok(OpCode::BinInt1(n)), assert_eq!(n, 10));
+    }
+
+    #[test]
+    fn test_bin_int2() {
+        t!(b"M\x0a", Err(Error::ReadError(_)), assert!(true));
+        t!(b"M\x0a\x00\x00\x00", Ok(OpCode::BinInt2(n)), assert_eq!(n, 10));
+        t!(b"M\x0a\x01\x00\x00", Ok(OpCode::BinInt2(n)), assert_eq!(n, 266));
     }
 }
