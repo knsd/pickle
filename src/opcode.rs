@@ -92,35 +92,31 @@ pub enum OpCode {
     BinPersId,
 }
 
+pub fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
+    let mut buf = Vec::new();
+    try!(rd.read_until('\n' as u8, &mut buf));
+
+    // Skip last symbol — \n
+    match buf.split_last() {
+        None => Err(Error::InvalidString),
+        Some((_last, init)) => Ok(init.to_vec()),
+    }
+}
+
 pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRead {
     let marker = try!(rd.read_u8());
     return Ok(match marker {
         73 => {
-            let mut buf = Vec::new();
-            try!(rd.read_until('\n' as u8, &mut buf));
-
-            // Skip last symbol — \n
-            let init = match buf.split_last() {
-                None => return Err(Error::InvalidString),
-                Some((_last, init)) => init,
-            };
-            OpCode::Int(try!(try!(from_utf8(init)).parse()))
+            let s = try!(read_until_newline(rd));
+            OpCode::Int(try!(try!(from_utf8(&s)).parse()))
         },
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         75 => OpCode::BinInt1(try!(rd.read_u8())),
         77 => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
         76 => {
+            let s = try!(read_until_newline(rd));
 
-            let mut buf = Vec::new();
-            try!(rd.read_until('\n' as u8, &mut buf));
-
-            // Skip last symbol — \n
-            let init_with_l = match buf.split_last() {
-                None => return Err(Error::InvalidString),
-                Some((_last, init)) => init,
-            };
-
-            let init = match init_with_l.split_last() {
+            let init = match s.split_last() {
                 None => return Err(Error::InvalidString),
                 Some((&76, init)) => init,
                 Some(_) => return Err(Error::ExpectedTrailingL),
