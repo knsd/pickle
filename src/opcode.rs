@@ -21,6 +21,7 @@ quick_error! {
         InvalidString
         ExpectedTrailingL
         InvalidLong
+        NegativeLength
     }
 }
 
@@ -167,12 +168,18 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         },
         139 => {
             let length = try!(rd.read_i32::<LittleEndian>());
+            if length < 0 {
+                return Err(Error::NegativeLength)
+            }
             OpCode::Long4(try!(read_long(rd, length as usize)))
 
         },
         83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
         84 => {
             let length = try!(rd.read_i32::<LittleEndian>());
+            if length < 0 {
+                return Err(Error::NegativeLength)
+            }
             let mut buf = vec![0; length as usize];
             try!(read_exact(rd, &mut buf));
             OpCode::BinString(buf)
@@ -261,6 +268,7 @@ mod tests {
 
     #[test]
     fn test_long4() {
+        t!(b"\x8b\xff\xff\xff\xff", Err(Error::NegativeLength), assert!(true));
         t!(b"\x8b\x0a", Err(Error::ReadError(_)), assert!(true));
         t!(b"\x8b\x01\x00\x00\x00\x0a", Ok(OpCode::Long4(n)), assert_eq!(n, n!(10)));
         t!(b"\x8b\x01\x00\x00\x00\xf6", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-10)));
@@ -278,6 +286,7 @@ mod tests {
 
     #[test]
     fn test_bin_string() {
+        t!(b"T\xff\xff\xff\xff", Err(Error::NegativeLength), assert!(true));
         t!(b"T\x00\x00\x00\x00", Ok(OpCode::BinString(s)), assert_eq!(s, b""));
         t!(b"T\x03\x00\x00\x00abc", Ok(OpCode::BinString(s)), assert_eq!(s, b"abc"));
         t!(b"T\x03\x00\x00\x00123", Ok(OpCode::BinString(s)), assert_eq!(s, b"123"));
