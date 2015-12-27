@@ -1,7 +1,7 @@
 use std::io::{Read, BufRead, Error as IoError};
 use std::str::{from_utf8, Utf8Error};
 
-use num::bigint::{BigInt, ParseBigIntError};
+use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
 use byteorder::{ReadBytesExt, LittleEndian, Error as ByteorderError};
 
 quick_error! {
@@ -20,6 +20,7 @@ quick_error! {
         }
         InvalidString
         ExpectedTrailingL
+        InvalidLong
     }
 }
 
@@ -30,8 +31,8 @@ pub enum OpCode {
     BinInt1(u8),
     BinInt2(u16),
     Long(BigInt),
-    Long1(u8),
-    Long4(i32),
+    Long1(BigInt),
+    Long4(BigInt),
 
     String(Vec<u8>),
     BinString(Vec<u8>),
@@ -103,12 +104,30 @@ pub fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read
     }
 }
 
+pub fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
+    let mut buf = vec![0; length];
+    try!(rd.read_exact(buf.as_mut()));
+
+    let mut n = BigInt::from_bytes_le(Sign::Plus, &buf);
+
+    let last = match buf.last_mut() {
+        None => return Err(Error::InvalidLong),
+        Some(last) => last,
+    };
+
+    if *last > 127 {
+        n = n - (1.to_bigint().unwrap() << (length * 8))
+    }
+
+    Ok(n)
+}
+
 pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRead {
     let marker = try!(rd.read_u8());
     return Ok(match marker {
         73 => {
             let s = try!(read_until_newline(rd));
-            OpCode::Int(try!(try!(from_utf8(&s)).parse()))
+            OpCode::Int(try!(try!(from_utf8(&s)).parse()))  // http://rust-num.github.io/num/num/bigint/struct.BigInt.html#method.parse_bytes
         },
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         75 => OpCode::BinInt1(try!(rd.read_u8())),
@@ -124,8 +143,16 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
 
             OpCode::Long(try!(try!(from_utf8(init)).parse()))
         },
-        138 => OpCode::Long1(try!(rd.read_u8())),
-        139 => OpCode::Long4(try!(rd.read_i32::<LittleEndian>())),
+        138 => {
+            let length = try!(rd.read_u8());
+            OpCode::Long1(try!(read_long(rd, length as usize)))
+
+        },
+        139 => {
+            let length = try!(rd.read_i32::<LittleEndian>());
+            OpCode::Long1(try!(read_long(rd, length as usize)))
+
+        },
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -190,13 +217,13 @@ mod tests {
     #[test]
     fn test_long1() {
         t!(b"\x8a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x8a\x0a", Ok(OpCode::Long1(n)), assert_eq!(n, 10));
+        t!(b"\x8a\x01\x0a", Ok(OpCode::Long1(n)), assert_eq!(n, FromPrimitive::from_usize(10).unwrap()));
+        t!(b"\x8a\x01\xf6", Ok(OpCode::Long1(n)), assert_eq!(n, FromPrimitive::from_isize(-10).unwrap()));
+        t!(b"\x8a\x02.\xfb", Ok(OpCode::Long1(n)), assert_eq!(n, FromPrimitive::from_isize(-1234).unwrap()));
     }
 
     #[test]
     fn test_long4() {
         t!(b"\x8b\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x8b\x0a\x00\x00\x00", Ok(OpCode::Long4(n)), assert_eq!(n, 10));
-        t!(b"\x8b\x0a\x00\x00\x01", Ok(OpCode::Long4(n)), assert_eq!(n, 16777226));
     }
 }
