@@ -194,12 +194,16 @@ mod tests {
         })
     }
 
+    macro_rules! n {
+        ($x: expr) => ({FromPrimitive::from_isize($x).unwrap()})
+    }
+
     #[test]
     fn test_int() {
         t!(b"I", Err(Error::InvalidString), assert!(true));
         t!(b"I\n", Err(Error::InvalidInt), assert!(true));
         t!(b"Iabc\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"I123\n", Ok(OpCode::Int(n)), assert_eq!(n, FromPrimitive::from_usize(123).unwrap()));
+        t!(b"I123\n", Ok(OpCode::Int(n)), assert_eq!(n, n!(123)));
     }
 
     #[test]
@@ -228,22 +232,22 @@ mod tests {
         t!(b"L\n", Err(Error::InvalidString), assert!(true));
         t!(b"Labc\n", Err(Error::ExpectedTrailingL), assert!(true));
         t!(b"LabcL\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"L123L\n", Ok(OpCode::Long(n)), assert_eq!(n, FromPrimitive::from_usize(123).unwrap()));
+        t!(b"L123L\n", Ok(OpCode::Long(n)), assert_eq!(n, n!(123)));
     }
 
     #[test]
     fn test_long1() {
         t!(b"\x8a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x8a\x01\x0a", Ok(OpCode::Long1(n)), assert_eq!(n, FromPrimitive::from_usize(10).unwrap()));
-        t!(b"\x8a\x01\xf6", Ok(OpCode::Long1(n)), assert_eq!(n, FromPrimitive::from_isize(-10).unwrap()));
-        t!(b"\x8a\x02.\xfb", Ok(OpCode::Long1(n)), assert_eq!(n, FromPrimitive::from_isize(-1234).unwrap()));
+        t!(b"\x8a\x01\x0a", Ok(OpCode::Long1(n)), assert_eq!(n, n!(10)));
+        t!(b"\x8a\x01\xf6", Ok(OpCode::Long1(n)), assert_eq!(n, n!(-10)));
+        t!(b"\x8a\x02.\xfb", Ok(OpCode::Long1(n)), assert_eq!(n, n!(-1234)));
     }
 
     #[test]
     fn test_long4() {
         t!(b"\x8b\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x8b\x01\x00\x00\x00\x0a", Ok(OpCode::Long4(n)), assert_eq!(n, FromPrimitive::from_usize(10).unwrap()));
-        t!(b"\x8b\x01\x00\x00\x00\xf6", Ok(OpCode::Long4(n)), assert_eq!(n, FromPrimitive::from_isize(-10).unwrap()));
-        t!(b"\x8b\x02\x00\x00\x00.\xfb", Ok(OpCode::Long4(n)), assert_eq!(n, FromPrimitive::from_isize(-1234).unwrap()));
+        t!(b"\x8b\x01\x00\x00\x00\x0a", Ok(OpCode::Long4(n)), assert_eq!(n, n!(10)));
+        t!(b"\x8b\x01\x00\x00\x00\xf6", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-10)));
+        t!(b"\x8b\x02\x00\x00\x00.\xfb", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-1234)));
     }
 }
