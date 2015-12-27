@@ -183,6 +183,9 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             try!(read_exact(rd, &mut buf));
             OpCode::ShortBinString(buf)
         }
+        78 => OpCode::None,
+        136 => OpCode::NewTrue,
+        137 => OpCode::NewFalse,
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -287,5 +290,20 @@ mod tests {
         t!(b"U\x03abc", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"abc"));
         t!(b"U\x03123", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"123"));
         t!(b"U\x02\\n", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"\\n"));
+    }
+
+    #[test]
+    fn test_none() {
+        t!(b"N", Ok(OpCode::None), assert!(true));
+    }
+
+    #[test]
+    fn test_new_true() {
+        t!(b"\x88", Ok(OpCode::NewTrue), assert!(true));
+    }
+
+    #[test]
+    fn test_new_false() {
+        t!(b"\x89", Ok(OpCode::NewFalse), assert!(true));
     }
 }
