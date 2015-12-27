@@ -19,6 +19,7 @@ quick_error! {
             from(ParseBigIntError)
         }
         InvalidString
+        ExpectedTrailingL
     }
 }
 
@@ -103,12 +104,32 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
                 None => return Err(Error::InvalidString),
                 Some((_last, init)) => init,
             };
-
             OpCode::Int(try!(try!(from_utf8(init)).parse()))
         },
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         75 => OpCode::BinInt1(try!(rd.read_u8())),
         77 => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
+        76 => {
+
+            let mut buf = Vec::new();
+            try!(rd.read_until('\n' as u8, &mut buf));
+
+            // Skip last symbol — \n
+            let init_with_l = match buf.split_last() {
+                None => return Err(Error::InvalidString),
+                Some((_last, init)) => init,
+            };
+
+            let init = match init_with_l.split_last() {
+                None => return Err(Error::InvalidString),
+                Some((&76, init)) => init,
+                Some(_) => return Err(Error::ExpectedTrailingL),
+            };
+
+            OpCode::Long(try!(try!(from_utf8(init)).parse()))
+        },
+        138 => OpCode::Long1(try!(rd.read_u8())),
+        139 => OpCode::Long4(try!(rd.read_i32::<LittleEndian>())),
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -159,5 +180,27 @@ mod tests {
         t!(b"M\x0a", Err(Error::ReadError(_)), assert!(true));
         t!(b"M\x0a\x00\x00\x00", Ok(OpCode::BinInt2(n)), assert_eq!(n, 10));
         t!(b"M\x0a\x01\x00\x00", Ok(OpCode::BinInt2(n)), assert_eq!(n, 266));
+    }
+
+    #[test]
+    fn test_long() {
+        t!(b"L", Err(Error::InvalidString), assert!(true));
+        t!(b"L\n", Err(Error::InvalidString), assert!(true));
+        t!(b"Labc\n", Err(Error::ExpectedTrailingL), assert!(true));
+        t!(b"LabcL\n", Err(Error::InvalidInt), assert!(true));
+        t!(b"L123L\n", Ok(OpCode::Long(n)), assert_eq!(n, FromPrimitive::from_usize(123).unwrap()));
+    }
+
+    #[test]
+    fn test_long1() {
+        t!(b"\x8a", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x8a\x0a", Ok(OpCode::Long1(n)), assert_eq!(n, 10));
+    }
+
+    #[test]
+    fn test_long4() {
+        t!(b"\x8b\x0a", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x8b\x0a\x00\x00\x00", Ok(OpCode::Long4(n)), assert_eq!(n, 10));
+        t!(b"\x8b\x0a\x00\x00\x01", Ok(OpCode::Long4(n)), assert_eq!(n, 16777226));
     }
 }
