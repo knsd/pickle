@@ -1,4 +1,4 @@
-use std::io::{Read, BufRead, Error as IoError};
+use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::str::{from_utf8, Utf8Error};
 
 use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
@@ -93,6 +93,23 @@ pub enum OpCode {
     BinPersId,
 }
 
+fn read_exact<R>(rd: &mut R, mut buf: &mut [u8]) -> Result<(), IoError> where R: Read {
+    while !buf.is_empty() {
+        match rd.read(buf) {
+            Ok(0) => break,
+            Ok(n) => { let tmp = buf; buf = &mut tmp[n..]; }
+            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+    if !buf.is_empty() {
+        Err(IoError::new(ErrorKind::Other,
+                       "failed to fill whole buffer"))
+    } else {
+        Ok(())
+    }
+}
+
 pub fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
     let mut buf = Vec::new();
     try!(rd.read_until('\n' as u8, &mut buf));
@@ -106,7 +123,7 @@ pub fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read
 
 pub fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
     let mut buf = vec![0; length];
-    try!(rd.read_exact(buf.as_mut()));
+    try!(read_exact(rd, buf.as_mut()));
 
     let mut n = BigInt::from_bytes_le(Sign::Plus, &buf);
 
