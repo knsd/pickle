@@ -170,6 +170,19 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::Long4(try!(read_long(rd, length as usize)))
 
         },
+        83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
+        84 => {
+            let length = try!(rd.read_i32::<LittleEndian>());
+            let mut buf = vec![0; length as usize];
+            try!(read_exact(rd, &mut buf));
+            OpCode::BinString(buf)
+        }
+        85 => {
+            let length = try!(rd.read_u8());
+            let mut buf = vec![0; length as usize];
+            try!(read_exact(rd, &mut buf));
+            OpCode::ShortBinString(buf)
+        }
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -249,5 +262,30 @@ mod tests {
         t!(b"\x8b\x01\x00\x00\x00\x0a", Ok(OpCode::Long4(n)), assert_eq!(n, n!(10)));
         t!(b"\x8b\x01\x00\x00\x00\xf6", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-10)));
         t!(b"\x8b\x02\x00\x00\x00.\xfb", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-1234)));
+    }
+
+    #[test]
+    fn test_string() {
+        t!(b"S", Err(Error::InvalidString), assert!(true));
+        t!(b"S\n", Ok(OpCode::String(s)), assert_eq!(s, b""));
+        t!(b"Sabc\n", Ok(OpCode::String(s)), assert_eq!(s, b"abc"));
+        t!(b"S123\n", Ok(OpCode::String(s)), assert_eq!(s, b"123"));
+        t!(b"S\\n\n", Ok(OpCode::String(s)), assert_eq!(s, b"\\n"));
+    }
+
+    #[test]
+    fn test_bin_string() {
+        t!(b"T\x00\x00\x00\x00", Ok(OpCode::BinString(s)), assert_eq!(s, b""));
+        t!(b"T\x03\x00\x00\x00abc", Ok(OpCode::BinString(s)), assert_eq!(s, b"abc"));
+        t!(b"T\x03\x00\x00\x00123", Ok(OpCode::BinString(s)), assert_eq!(s, b"123"));
+        t!(b"T\x02\x00\x00\x00\\n", Ok(OpCode::BinString(s)), assert_eq!(s, b"\\n"));
+    }
+
+    #[test]
+    fn test_short_bin_string() {
+        t!(b"U\x00", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b""));
+        t!(b"U\x03abc", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"abc"));
+        t!(b"U\x03123", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"123"));
+        t!(b"U\x02\\n", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"\\n"));
     }
 }
