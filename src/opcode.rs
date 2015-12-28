@@ -172,7 +172,6 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         138 => {
             let length = try!(rd.read_u8());
             OpCode::Long1(try!(read_long(rd, length as usize)))
-
         },
         139 => {
             let length = try!(rd.read_i32::<LittleEndian>());
@@ -180,7 +179,6 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
                 return Err(Error::NegativeLength)
             }
             OpCode::Long4(try!(read_long(rd, length as usize)))
-
         },
 
         83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
