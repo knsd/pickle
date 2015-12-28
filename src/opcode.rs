@@ -132,6 +132,17 @@ fn read_decimal_int<R>(rd: &mut R) -> Result<i64, Error> where R: Read + BufRead
     Ok(try!(try!(from_utf8(&s)).parse()))
 }
 
+fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + BufRead {
+    let s = try!(read_until_newline(rd));
+    let init = match s.split_last() {
+        None => return Err(Error::InvalidString),
+        Some((&b'L', init)) => init,
+        Some(_) => return Err(Error::ExpectedTrailingL),
+    };
+
+    Ok(try!(try!(from_utf8(&init)).parse())) // http://rust-num.github.io/num/num/bigint/struct.BigInt.html#method.parse_bytes
+}
+
 fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
     let mut buf = vec![0; length];
     try!(read_exact(rd, buf.as_mut()));
@@ -157,17 +168,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         75 => OpCode::BinInt1(try!(rd.read_u8())),
         77 => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
-        76 => {
-            let s = try!(read_until_newline(rd));
-
-            let init = match s.split_last() {
-                None => return Err(Error::InvalidString),
-                Some((&76, init)) => init,
-                Some(_) => return Err(Error::ExpectedTrailingL),
-            };
-
-            OpCode::Long(try!(try!(from_utf8(init)).parse())) // http://rust-num.github.io/num/num/bigint/struct.BigInt.html#method.parse_bytes
-        },
+        76 => OpCode::Long(try!(read_decimal_long(rd))),
         138 => {
             let length = try!(rd.read_u8());
             OpCode::Long1(try!(read_long(rd, length as usize)))
