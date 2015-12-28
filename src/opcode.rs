@@ -178,6 +178,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::Long4(try!(read_long(rd, length as usize)))
 
         },
+
         83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
         84 => {
             let length = try!(rd.read_i32::<LittleEndian>());
@@ -194,11 +195,14 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             try!(read_exact(rd, &mut buf));
             OpCode::ShortBinString(buf)
         }
+
         78 => OpCode::None,
         136 => OpCode::NewTrue,
         137 => OpCode::NewFalse,
+
         86 => unimplemented!(), // Unicode
         88 => unimplemented!(), // BinUnicode
+
         70 => {
             let s = try!(read_until_newline(rd));
             OpCode::Float(try!(try!(from_utf8(&s)).parse()))
@@ -206,10 +210,18 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         71 => {
             OpCode::BinFloat(try!(rd.read_f64::<BigEndian>()))
         }
+
         93 => OpCode::EmptyList,
         97 => OpCode::Append,
         101 => OpCode::Appends,
         108 => OpCode::List,
+
+        41 => OpCode::EmptyTuple,
+        116 => OpCode::Tuple,
+        133 => OpCode::Tuple1,
+        134 => OpCode::Tuple2,
+        135 => OpCode::Tuple3,
+
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -380,6 +392,31 @@ mod tests {
     #[test]
     fn test_list() {
         t!(b"l", Ok(OpCode::List), assert!(true));
+    }
+
+    #[test]
+    fn test_empty_tuple() {
+        t!(b")", Ok(OpCode::EmptyTuple), assert!(true));
+    }
+
+    #[test]
+    fn test_tuple() {
+        t!(b"t", Ok(OpCode::Tuple), assert!(true));
+    }
+
+    #[test]
+    fn test_tuple1() {
+        t!(b"\x85", Ok(OpCode::Tuple1), assert!(true));
+    }
+
+    #[test]
+    fn test_tuple2() {
+        t!(b"\x86", Ok(OpCode::Tuple2), assert!(true));
+    }
+
+    #[test]
+    fn test_tuple3() {
+        t!(b"\x87", Ok(OpCode::Tuple3), assert!(true));
     }
 
 }
