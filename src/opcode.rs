@@ -227,6 +227,11 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         115 => OpCode::SetItem,
         117 => OpCode::SetItems,
 
+        48 => OpCode::Pop,
+        50 => OpCode::Dup,
+        40 => OpCode::Mark,
+        49 => OpCode::PopMark,
+
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -442,6 +447,26 @@ mod tests {
     #[test]
     fn test_set_items() {
         t!(b"u", Ok(OpCode::SetItems), assert!(true));
+    }
+
+    #[test]
+    fn test_pop() {
+        t!(b"0", Ok(OpCode::Pop), assert!(true));
+    }
+
+    #[test]
+    fn test_dup() {
+        t!(b"2", Ok(OpCode::Dup), assert!(true));
+    }
+
+    #[test]
+    fn test_mark() {
+        t!(b"(", Ok(OpCode::Mark), assert!(true));
+    }
+
+    #[test]
+    fn test_pop_mark() {
+        t!(b"1", Ok(OpCode::PopMark), assert!(true));
     }
 
 
