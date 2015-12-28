@@ -127,6 +127,11 @@ fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + B
     }
 }
 
+fn read_decimal_int<R>(rd: &mut R) -> Result<i64, Error> where R: Read + BufRead {
+    let s = try!(read_until_newline(rd));
+    Ok(try!(try!(from_utf8(&s)).parse()))
+}
+
 fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
     let mut buf = vec![0; length];
     try!(read_exact(rd, buf.as_mut()));
@@ -148,10 +153,7 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
 pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRead {
     let marker = try!(rd.read_u8());
     return Ok(match marker {
-        73 => {
-            let s = try!(read_until_newline(rd));
-            OpCode::Int(try!(try!(from_utf8(&s)).parse()))
-        },
+        73 => OpCode::Int(try!(read_decimal_int(rd))),
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         75 => OpCode::BinInt1(try!(rd.read_u8())),
         77 => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
