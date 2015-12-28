@@ -1,8 +1,9 @@
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::str::{from_utf8, Utf8Error};
+use std::num::{ParseFloatError};
 
 use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
-use byteorder::{ReadBytesExt, LittleEndian, Error as ByteorderError};
+use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
 
 quick_error! {
     #[derive(Debug)]
@@ -17,6 +18,9 @@ quick_error! {
         InvalidInt {
             from(Utf8Error)
             from(ParseBigIntError)
+        }
+        InvalidFloat {
+            from(ParseFloatError)
         }
         InvalidString
         ExpectedTrailingL
@@ -193,6 +197,15 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         78 => OpCode::None,
         136 => OpCode::NewTrue,
         137 => OpCode::NewFalse,
+        86 => unimplemented!(), // Unicode
+        88 => unimplemented!(), // BinUnicode
+        70 => {
+            let s = try!(read_until_newline(rd));
+            OpCode::Float(try!(try!(from_utf8(&s)).parse()))
+        },
+        71 => {
+            OpCode::BinFloat(try!(rd.read_f64::<BigEndian>()))
+        }
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -315,4 +328,34 @@ mod tests {
     fn test_new_false() {
         t!(b"\x89", Ok(OpCode::NewFalse), assert!(true));
     }
+
+    #[test]
+    fn test_unicode() {
+    }
+
+    #[test]
+    fn test_bin_unicode() {
+    }
+
+    #[test]
+    fn test_float() {
+        t!(b"F", Err(Error::InvalidString), assert!(true));
+        t!(b"F\n", Err(Error::InvalidFloat), assert!(true));
+        t!(b"Fabc\n", Err(Error::InvalidFloat), assert!(true));
+        t!(b"F123\n", Ok(OpCode::Float(n)), assert_eq!(n, 123.0));
+        t!(b"F-123\n", Ok(OpCode::Float(n)), assert_eq!(n, -123.0));
+        t!(b"F-123.\n", Ok(OpCode::Float(n)), assert_eq!(n, -123.0));
+        t!(b"F-123.456\n", Ok(OpCode::Float(n)), assert_eq!(n, -123.456));
+    }
+
+    #[test]
+    fn test_bin_float() {
+        t!(b"G", Err(Error::ReadError(_)), assert!(true));
+        t!(b"Gabc", Err(Error::ReadError(_)), assert!(true));
+        t!(b"G123", Err(Error::ReadError(_)), assert!(true));
+        t!(b"G@^\xc0\x00\x00\x00\x00\x00", Ok(OpCode::BinFloat(n)), assert_eq!(n, 123.0));
+        t!(b"G\xc0^\xc0\x00\x00\x00\x00\x00", Ok(OpCode::BinFloat(n)), assert_eq!(n, -123.0));
+        t!(b"G\xc0^\xdd/\x1a\x9f\xbew", Ok(OpCode::BinFloat(n)), assert_eq!(n, -123.456));
+    }
+
 }
