@@ -115,7 +115,7 @@ fn read_exact<R>(rd: &mut R, mut buf: &mut [u8]) -> Result<(), IoError> where R:
     }
 }
 
-pub fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
+fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
     let mut buf = Vec::new();
     try!(rd.read_until('\n' as u8, &mut buf));
 
@@ -126,7 +126,7 @@ pub fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read
     }
 }
 
-pub fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
+fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
     let mut buf = vec![0; length];
     try!(read_exact(rd, buf.as_mut()));
 
