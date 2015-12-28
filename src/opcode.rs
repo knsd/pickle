@@ -206,6 +206,10 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         71 => {
             OpCode::BinFloat(try!(rd.read_f64::<BigEndian>()))
         }
+        93 => OpCode::EmptyList,
+        97 => OpCode::Append,
+        101 => OpCode::Appends,
+        108 => OpCode::List,
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -356,6 +360,26 @@ mod tests {
         t!(b"G@^\xc0\x00\x00\x00\x00\x00", Ok(OpCode::BinFloat(n)), assert_eq!(n, 123.0));
         t!(b"G\xc0^\xc0\x00\x00\x00\x00\x00", Ok(OpCode::BinFloat(n)), assert_eq!(n, -123.0));
         t!(b"G\xc0^\xdd/\x1a\x9f\xbew", Ok(OpCode::BinFloat(n)), assert_eq!(n, -123.456));
+    }
+
+    #[test]
+    fn test_empty_list() {
+        t!(b"]", Ok(OpCode::EmptyList), assert!(true));
+    }
+
+    #[test]
+    fn test_append() {
+        t!(b"a", Ok(OpCode::Append), assert!(true));
+    }
+
+    #[test]
+    fn test_appends() {
+        t!(b"e", Ok(OpCode::Appends), assert!(true));
+    }
+
+    #[test]
+    fn test_list() {
+        t!(b"l", Ok(OpCode::List), assert!(true));
     }
 
 }
