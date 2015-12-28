@@ -2,6 +2,7 @@ use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::str::{from_utf8, Utf8Error};
 use std::num::{ParseIntError, ParseFloatError};
 
+use num::{Zero};
 use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
 
@@ -161,6 +162,13 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
     Ok(n)
 }
 
+fn ensure_not_negative<N>(n: N) -> Result<(), Error> where N: PartialOrd<N> + Zero {
+    if n < Zero::zero() {
+        return Err(Error::NegativeLength)
+    }
+    Ok(())
+}
+
 pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRead {
     let marker = try!(rd.read_u8());
     return Ok(match marker {
@@ -175,18 +183,16 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         },
         139 => {
             let length = try!(rd.read_i32::<LittleEndian>());
-            if length < 0 {
-                return Err(Error::NegativeLength)
-            }
+            try!(ensure_not_negative(length));
+
             OpCode::Long4(try!(read_long(rd, length as usize)))
         },
 
         83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
         84 => {
             let length = try!(rd.read_i32::<LittleEndian>());
-            if length < 0 {
-                return Err(Error::NegativeLength)
-            }
+            try!(ensure_not_negative(length));
+
             let mut buf = vec![0; length as usize];
             try!(read_exact(rd, &mut buf));
             OpCode::BinString(buf)
