@@ -77,6 +77,7 @@ pub enum OpCode {
     Mark,
     PopMark,
 
+    // TODO: why usize
     Get(usize),
     BinGet(usize),
     LongBinGet(usize),
@@ -162,14 +163,16 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
     Ok(n)
 }
 
-fn ensure_not_negative<N>(n: N) -> Result<(), Error> where N: PartialOrd<N> + Zero {
-    if n < Zero::zero() {
-        return Err(Error::NegativeLength)
-    }
-    Ok(())
-}
-
 pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRead {
+
+    macro_rules! ensure_not_negative {
+        ($n: expr) => ({
+            if $n < Zero::zero() {
+                return Err(Error::NegativeLength)
+            }
+        })
+    }
+
     let marker = try!(rd.read_u8());
     return Ok(match marker {
         73 => OpCode::Int(try!(read_decimal_int(rd))),
@@ -183,7 +186,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         },
         139 => {
             let length = try!(rd.read_i32::<LittleEndian>());
-            try!(ensure_not_negative(length));
+            ensure_not_negative!(length);
 
             OpCode::Long4(try!(read_long(rd, length as usize)))
         },
@@ -191,7 +194,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
         84 => {
             let length = try!(rd.read_i32::<LittleEndian>());
-            try!(ensure_not_negative(length));
+            ensure_not_negative!(length);
 
             let mut buf = vec![0; length as usize];
             try!(read_exact(rd, &mut buf));
@@ -239,6 +242,29 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         50 => OpCode::Dup,
         40 => OpCode::Mark,
         49 => OpCode::PopMark,
+
+        103 => {
+            let n = try!(read_decimal_int(rd));
+            ensure_not_negative!(n);
+            OpCode::Get(n as usize)
+        },
+        104 => OpCode::BinGet(try!(rd.read_u8()) as usize),
+        106 => {
+            let n = try!(rd.read_i32::<LittleEndian>());
+            ensure_not_negative!(n);
+            OpCode::LongBinGet(n as usize)
+        }
+        112 => {
+            let n = try!(read_decimal_int(rd));
+            ensure_not_negative!(n);
+            OpCode::Put(n as usize)
+        },
+        113 => OpCode::BinPut(try!(rd.read_u8()) as usize),
+        114 => {
+            let n = try!(rd.read_i32::<LittleEndian>());
+            ensure_not_negative!(n);
+            OpCode::LongBinPut(n as usize)
+        }
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -478,5 +504,52 @@ mod tests {
         t!(b"1", Ok(OpCode::PopMark), assert!(true));
     }
 
+    #[test]
+    fn test_get() {
+        t!(b"g", Err(Error::InvalidString), assert!(true));
+        t!(b"g\n", Err(Error::InvalidInt), assert!(true));
+        t!(b"gabc\n", Err(Error::InvalidInt), assert!(true));
+        t!(b"g-123\n", Err(Error::NegativeLength), assert!(true));
+        t!(b"g123\n", Ok(OpCode::Get(n)), assert_eq!(n, 123));
+    }
 
+    #[test]
+    fn test_bin_get() {
+        t!(b"h", Err(Error::ReadError(_)), assert!(true));
+        t!(b"h\x00", Ok(OpCode::BinGet(n)), assert_eq!(n, 0));
+        t!(b"h\x0a", Ok(OpCode::BinGet(n)), assert_eq!(n, 10));
+        t!(b"h\xfe", Ok(OpCode::BinGet(n)), assert_eq!(n, 254));
+
+    }
+
+    #[test]
+    fn test_long_bin_get() {
+        t!(b"j\x0a", Err(Error::ReadError(_)), assert!(true));
+        t!(b"j\x0a\x00\x00\x00", Ok(OpCode::LongBinGet(n)), assert_eq!(n, 10));
+        t!(b"j\x0a\x00\x00\x01", Ok(OpCode::LongBinGet(n)), assert_eq!(n, 16777226));
+    }
+
+    #[test]
+    fn test_put() {
+        t!(b"p", Err(Error::InvalidString), assert!(true));
+        t!(b"p\n", Err(Error::InvalidInt), assert!(true));
+        t!(b"pabc\n", Err(Error::InvalidInt), assert!(true));
+        t!(b"p-123\n", Err(Error::NegativeLength), assert!(true));
+        t!(b"p123\n", Ok(OpCode::Put(n)), assert_eq!(n, 123));
+    }
+
+    #[test]
+    fn test_bin_put() {
+        t!(b"q", Err(Error::ReadError(_)), assert!(true));
+        t!(b"q\x00", Ok(OpCode::BinPut(n)), assert_eq!(n, 0));
+        t!(b"q\x0a", Ok(OpCode::BinPut(n)), assert_eq!(n, 10));
+        t!(b"q\xfe", Ok(OpCode::BinPut(n)), assert_eq!(n, 254));
+    }
+
+    #[test]
+    fn test_long_bin_put() {
+        t!(b"r\x0a", Err(Error::ReadError(_)), assert!(true));
+        t!(b"r\x0a\x00\x00\x00", Ok(OpCode::LongBinPut(n)), assert_eq!(n, 10));
+        t!(b"r\x0a\x00\x00\x01", Ok(OpCode::LongBinPut(n)), assert_eq!(n, 16777226));
+    }
 }
