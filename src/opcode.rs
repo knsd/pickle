@@ -222,6 +222,11 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         134 => OpCode::Tuple2,
         135 => OpCode::Tuple3,
 
+        125 => OpCode::EmptyDict,
+        100 => OpCode::Dict,
+        115 => OpCode::SetItem,
+        117 => OpCode::SetItems,
+
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -418,5 +423,26 @@ mod tests {
     fn test_tuple3() {
         t!(b"\x87", Ok(OpCode::Tuple3), assert!(true));
     }
+
+    #[test]
+    fn test_empty_dict() {
+        t!(b"}", Ok(OpCode::EmptyDict), assert!(true));
+    }
+
+    #[test]
+    fn test_dict() {
+        t!(b"d", Ok(OpCode::Dict), assert!(true));
+    }
+
+    #[test]
+    fn test_set_item() {
+        t!(b"s", Ok(OpCode::SetItem), assert!(true));
+    }
+
+    #[test]
+    fn test_set_items() {
+        t!(b"u", Ok(OpCode::SetItems), assert!(true));
+    }
+
 
 }
