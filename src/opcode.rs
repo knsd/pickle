@@ -1,6 +1,6 @@
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::str::{from_utf8, Utf8Error};
-use std::num::{ParseFloatError};
+use std::num::{ParseIntError, ParseFloatError};
 
 use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
@@ -17,6 +17,7 @@ quick_error! {
         UnknownOpcode(opcode: u8) {}
         InvalidInt {
             from(Utf8Error)
+            from(ParseIntError)
             from(ParseBigIntError)
         }
         InvalidFloat {
@@ -31,7 +32,7 @@ quick_error! {
 
 #[derive(Debug)]
 pub enum OpCode {
-    Int(BigInt),
+    Int(i64),
     BinInt(i32),
     BinInt1(u8),
     BinInt2(u16),
@@ -149,7 +150,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
     return Ok(match marker {
         73 => {
             let s = try!(read_until_newline(rd));
-            OpCode::Int(try!(try!(from_utf8(&s)).parse()))  // http://rust-num.github.io/num/num/bigint/struct.BigInt.html#method.parse_bytes
+            OpCode::Int(try!(try!(from_utf8(&s)).parse()))
         },
         74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         75 => OpCode::BinInt1(try!(rd.read_u8())),
@@ -163,7 +164,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
                 Some(_) => return Err(Error::ExpectedTrailingL),
             };
 
-            OpCode::Long(try!(try!(from_utf8(init)).parse()))
+            OpCode::Long(try!(try!(from_utf8(init)).parse())) // http://rust-num.github.io/num/num/bigint/struct.BigInt.html#method.parse_bytes
         },
         138 => {
             let length = try!(rd.read_u8());
@@ -265,7 +266,8 @@ mod tests {
         t!(b"I", Err(Error::InvalidString), assert!(true));
         t!(b"I\n", Err(Error::InvalidInt), assert!(true));
         t!(b"Iabc\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"I123\n", Ok(OpCode::Int(n)), assert_eq!(n, n!(123)));
+        t!(b"I123\n", Ok(OpCode::Int(n)), assert_eq!(n, 123));
+        t!(b"I-123\n", Ok(OpCode::Int(n)), assert_eq!(n, -123));
     }
 
     #[test]
