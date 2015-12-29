@@ -1,5 +1,6 @@
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::str::{from_utf8, Utf8Error};
+use std::string::{FromUtf8Error};
 use std::num::{ParseIntError, ParseFloatError};
 
 use num::{Zero};
@@ -24,7 +25,9 @@ quick_error! {
         InvalidFloat {
             from(ParseFloatError)
         }
-        InvalidString
+        InvalidString {
+            from(FromUtf8Error)
+        }
         ExpectedTrailingL
         InvalidLong
         NegativeLength
@@ -212,7 +215,13 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'\x89' => OpCode::NewFalse,
 
         b'V' => unimplemented!(), // Unicode
-        b'W' => unimplemented!(), // BinUnicode
+        b'X' => {
+            let length = try!(rd.read_i32::<LittleEndian>());
+            ensure_not_negative!(length);
+            let mut buf = vec![0; length as usize];
+            try!(read_exact(rd, buf.as_mut()));
+            OpCode::BinUnicode(try!(String::from_utf8(buf)))
+        },
 
         b'F' => {
             let s = try!(read_until_newline(rd));
@@ -396,6 +405,8 @@ mod tests {
 
     #[test]
     fn test_bin_unicode() {
+        t!(b"X\t\x00\x00\x00abc\xd0\xb3\xb4\xd0\xb5q", Err(Error::InvalidString), assert!(true));
+        t!(b"X\t\x00\x00\x00abc\xd0\xb3\xd0\xb4\xd0\xb5q", Ok(OpCode::BinUnicode(s)), assert_eq!(s, "abcгде"));
     }
 
     #[test]
