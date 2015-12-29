@@ -304,7 +304,19 @@ mod tests {
     macro_rules! t {
         ($buffer: expr, $pat:pat, $result:expr) => ({
             match read_opcode(&mut Cursor::new(&$buffer[..])) {
-                $pat => $result,
+                Ok($pat) => $result,
+                other => {
+                    println!("ERROR {:?}", other);
+                    assert!(false)
+                },
+            }
+        })
+    }
+
+    macro_rules! e {
+        ($buffer: expr, $pat:pat) => ({
+            match read_opcode(&mut Cursor::new(&$buffer[..])) {
+                Err($pat) => (),
                 other => {
                     println!("ERROR {:?}", other);
                     assert!(false)
@@ -319,111 +331,111 @@ mod tests {
 
     #[test]
     fn test_proto() {
-        t!(b"\x80", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x80\x00", Err(Error::InvalidProto), assert!(true));
-        t!(b"\x80\x01", Err(Error::InvalidProto), assert!(true));
-        t!(b"\x80\x02", Ok(OpCode::Proto(n)), assert_eq!(n, 2));
-        t!(b"\x80\x0a", Ok(OpCode::Proto(n)), assert_eq!(n, 10));
+        e!(b"\x80", Error::ReadError(_));
+        e!(b"\x80\x00", Error::InvalidProto);
+        e!(b"\x80\x01", Error::InvalidProto);
+        t!(b"\x80\x02", OpCode::Proto(n), assert_eq!(n, 2));
+        t!(b"\x80\x0a", OpCode::Proto(n), assert_eq!(n, 10));
     }
 
     fn test_stop() {
-        t!(b".", Ok(OpCode::Stop), assert!(true));
+        t!(b".", OpCode::Stop, assert!(true));
     }
 
     #[test]
     fn test_int() {
-        t!(b"I", Err(Error::InvalidString), assert!(true));
-        t!(b"I\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"Iabc\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"I123\n", Ok(OpCode::Int(n)), assert_eq!(n, 123));
-        t!(b"I-123\n", Ok(OpCode::Int(n)), assert_eq!(n, -123));
+        e!(b"I", Error::InvalidString);
+        e!(b"I\n", Error::InvalidInt);
+        e!(b"Iabc\n", Error::InvalidInt);
+        t!(b"I123\n", OpCode::Int(n), assert_eq!(n, 123));
+        t!(b"I-123\n", OpCode::Int(n), assert_eq!(n, -123));
     }
 
     #[test]
     fn test_bin_int() {
-        t!(b"J\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"J\x0a\x00\x00\x00", Ok(OpCode::BinInt(n)), assert_eq!(n, 10));
-        t!(b"J\x0a\x00\x00\x01", Ok(OpCode::BinInt(n)), assert_eq!(n, 16777226));
+        e!(b"J\x0a", Error::ReadError(_));
+        t!(b"J\x0a\x00\x00\x00", OpCode::BinInt(n), assert_eq!(n, 10));
+        t!(b"J\x0a\x00\x00\x01", OpCode::BinInt(n), assert_eq!(n, 16777226));
     }
 
     #[test]
     fn test_bin_int1() {
-        t!(b"K", Err(Error::ReadError(_)), assert!(true));
-        t!(b"K\x0a", Ok(OpCode::BinInt1(n)), assert_eq!(n, 10));
+        e!(b"K", Error::ReadError(_));
+        t!(b"K\x0a", OpCode::BinInt1(n), assert_eq!(n, 10));
     }
 
     #[test]
     fn test_bin_int2() {
-        t!(b"M\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"M\x0a\x00\x00\x00", Ok(OpCode::BinInt2(n)), assert_eq!(n, 10));
-        t!(b"M\x0a\x01\x00\x00", Ok(OpCode::BinInt2(n)), assert_eq!(n, 266));
+        e!(b"M\x0a", Error::ReadError(_));
+        t!(b"M\x0a\x00\x00\x00", OpCode::BinInt2(n), assert_eq!(n, 10));
+        t!(b"M\x0a\x01\x00\x00", OpCode::BinInt2(n), assert_eq!(n, 266));
     }
 
     #[test]
     fn test_long() {
-        t!(b"L", Err(Error::InvalidString), assert!(true));
-        t!(b"L\n", Err(Error::InvalidString), assert!(true));
-        t!(b"Labc\n", Err(Error::ExpectedTrailingL), assert!(true));
-        t!(b"LabcL\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"L123L\n", Ok(OpCode::Long(n)), assert_eq!(n, n!(123)));
+        e!(b"L", Error::InvalidString);
+        e!(b"L\n", Error::InvalidString);
+        e!(b"Labc\n", Error::ExpectedTrailingL);
+        e!(b"LabcL\n", Error::InvalidInt);
+        t!(b"L123L\n", OpCode::Long(n), assert_eq!(n, n!(123)));
     }
 
     #[test]
     fn test_long1() {
-        t!(b"\x8a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x8a\x01\x0a", Ok(OpCode::Long1(n)), assert_eq!(n, n!(10)));
-        t!(b"\x8a\x01\xf6", Ok(OpCode::Long1(n)), assert_eq!(n, n!(-10)));
-        t!(b"\x8a\x02.\xfb", Ok(OpCode::Long1(n)), assert_eq!(n, n!(-1234)));
+        e!(b"\x8a", Error::ReadError(_));
+        t!(b"\x8a\x01\x0a", OpCode::Long1(n), assert_eq!(n, n!(10)));
+        t!(b"\x8a\x01\xf6", OpCode::Long1(n), assert_eq!(n, n!(-10)));
+        t!(b"\x8a\x02.\xfb", OpCode::Long1(n), assert_eq!(n, n!(-1234)));
     }
 
     #[test]
     fn test_long4() {
-        t!(b"\x8b\xff\xff\xff\xff", Err(Error::NegativeLength), assert!(true));
-        t!(b"\x8b\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x8b\x01\x00\x00\x00\x0a", Ok(OpCode::Long4(n)), assert_eq!(n, n!(10)));
-        t!(b"\x8b\x01\x00\x00\x00\xf6", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-10)));
-        t!(b"\x8b\x02\x00\x00\x00.\xfb", Ok(OpCode::Long4(n)), assert_eq!(n, n!(-1234)));
+        e!(b"\x8b\xff\xff\xff\xff", Error::NegativeLength);
+        e!(b"\x8b\x0a", Error::ReadError(_));
+        t!(b"\x8b\x01\x00\x00\x00\x0a", OpCode::Long4(n), assert_eq!(n, n!(10)));
+        t!(b"\x8b\x01\x00\x00\x00\xf6", OpCode::Long4(n), assert_eq!(n, n!(-10)));
+        t!(b"\x8b\x02\x00\x00\x00.\xfb", OpCode::Long4(n), assert_eq!(n, n!(-1234)));
     }
 
     #[test]
     fn test_string() {
-        t!(b"S", Err(Error::InvalidString), assert!(true));
-        t!(b"S\n", Ok(OpCode::String(s)), assert_eq!(s, b""));
-        t!(b"Sabc\n", Ok(OpCode::String(s)), assert_eq!(s, b"abc"));
-        t!(b"S123\n", Ok(OpCode::String(s)), assert_eq!(s, b"123"));
-        t!(b"S\\n\n", Ok(OpCode::String(s)), assert_eq!(s, b"\\n"));
+        e!(b"S", Error::InvalidString);
+        t!(b"S\n", OpCode::String(s), assert_eq!(s, b""));
+        t!(b"Sabc\n", OpCode::String(s), assert_eq!(s, b"abc"));
+        t!(b"S123\n", OpCode::String(s), assert_eq!(s, b"123"));
+        t!(b"S\\n\n", OpCode::String(s), assert_eq!(s, b"\\n"));
     }
 
     #[test]
     fn test_bin_string() {
-        t!(b"T\xff\xff\xff\xff", Err(Error::NegativeLength), assert!(true));
-        t!(b"T\x00\x00\x00\x00", Ok(OpCode::BinString(s)), assert_eq!(s, b""));
-        t!(b"T\x03\x00\x00\x00abc", Ok(OpCode::BinString(s)), assert_eq!(s, b"abc"));
-        t!(b"T\x03\x00\x00\x00123", Ok(OpCode::BinString(s)), assert_eq!(s, b"123"));
-        t!(b"T\x02\x00\x00\x00\\n", Ok(OpCode::BinString(s)), assert_eq!(s, b"\\n"));
+        e!(b"T\xff\xff\xff\xff", Error::NegativeLength);
+        t!(b"T\x00\x00\x00\x00", OpCode::BinString(s), assert_eq!(s, b""));
+        t!(b"T\x03\x00\x00\x00abc", OpCode::BinString(s), assert_eq!(s, b"abc"));
+        t!(b"T\x03\x00\x00\x00123", OpCode::BinString(s), assert_eq!(s, b"123"));
+        t!(b"T\x02\x00\x00\x00\\n", OpCode::BinString(s), assert_eq!(s, b"\\n"));
     }
 
     #[test]
     fn test_short_bin_string() {
-        t!(b"U\x00", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b""));
-        t!(b"U\x03abc", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"abc"));
-        t!(b"U\x03123", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"123"));
-        t!(b"U\x02\\n", Ok(OpCode::ShortBinString(s)), assert_eq!(s, b"\\n"));
+        t!(b"U\x00", OpCode::ShortBinString(s), assert_eq!(s, b""));
+        t!(b"U\x03abc", OpCode::ShortBinString(s), assert_eq!(s, b"abc"));
+        t!(b"U\x03123", OpCode::ShortBinString(s), assert_eq!(s, b"123"));
+        t!(b"U\x02\\n", OpCode::ShortBinString(s), assert_eq!(s, b"\\n"));
     }
 
     #[test]
     fn test_none() {
-        t!(b"N", Ok(OpCode::None), assert!(true));
+        t!(b"N", OpCode::None, assert!(true));
     }
 
     #[test]
     fn test_new_true() {
-        t!(b"\x88", Ok(OpCode::NewTrue), assert!(true));
+        t!(b"\x88", OpCode::NewTrue, assert!(true));
     }
 
     #[test]
     fn test_new_false() {
-        t!(b"\x89", Ok(OpCode::NewFalse), assert!(true));
+        t!(b"\x89", OpCode::NewFalse, assert!(true));
     }
 
     #[test]
@@ -432,184 +444,184 @@ mod tests {
 
     #[test]
     fn test_bin_unicode() {
-        t!(b"X\t\x00\x00\x00abc\xd0\xb3\xb4\xd0\xb5q", Err(Error::InvalidString), assert!(true));
-        t!(b"X\t\x00\x00\x00abc\xd0\xb3\xd0\xb4\xd0\xb5q", Ok(OpCode::BinUnicode(s)), assert_eq!(s, "abcгде"));
+        e!(b"X\t\x00\x00\x00abc\xd0\xb3\xb4\xd0\xb5q", Error::InvalidString);
+        t!(b"X\t\x00\x00\x00abc\xd0\xb3\xd0\xb4\xd0\xb5q", OpCode::BinUnicode(s), assert_eq!(s, "abcгде"));
     }
 
     #[test]
     fn test_float() {
-        t!(b"F", Err(Error::InvalidString), assert!(true));
-        t!(b"F\n", Err(Error::InvalidFloat), assert!(true));
-        t!(b"Fabc\n", Err(Error::InvalidFloat), assert!(true));
-        t!(b"F123\n", Ok(OpCode::Float(n)), assert_eq!(n, 123.0));
-        t!(b"F-123\n", Ok(OpCode::Float(n)), assert_eq!(n, -123.0));
-        t!(b"F-123.\n", Ok(OpCode::Float(n)), assert_eq!(n, -123.0));
-        t!(b"F-123.456\n", Ok(OpCode::Float(n)), assert_eq!(n, -123.456));
+        e!(b"F", Error::InvalidString);
+        e!(b"F\n", Error::InvalidFloat);
+        e!(b"Fabc\n", Error::InvalidFloat);
+        t!(b"F123\n", OpCode::Float(n), assert_eq!(n, 123.0));
+        t!(b"F-123\n", OpCode::Float(n), assert_eq!(n, -123.0));
+        t!(b"F-123.\n", OpCode::Float(n), assert_eq!(n, -123.0));
+        t!(b"F-123.456\n", OpCode::Float(n), assert_eq!(n, -123.456));
     }
 
     #[test]
     fn test_bin_float() {
-        t!(b"G", Err(Error::ReadError(_)), assert!(true));
-        t!(b"Gabc", Err(Error::ReadError(_)), assert!(true));
-        t!(b"G123", Err(Error::ReadError(_)), assert!(true));
-        t!(b"G@^\xc0\x00\x00\x00\x00\x00", Ok(OpCode::BinFloat(n)), assert_eq!(n, 123.0));
-        t!(b"G\xc0^\xc0\x00\x00\x00\x00\x00", Ok(OpCode::BinFloat(n)), assert_eq!(n, -123.0));
-        t!(b"G\xc0^\xdd/\x1a\x9f\xbew", Ok(OpCode::BinFloat(n)), assert_eq!(n, -123.456));
+        e!(b"G", Error::ReadError(_));
+        e!(b"Gabc", Error::ReadError(_));
+        e!(b"G123", Error::ReadError(_));
+        t!(b"G@^\xc0\x00\x00\x00\x00\x00", OpCode::BinFloat(n), assert_eq!(n, 123.0));
+        t!(b"G\xc0^\xc0\x00\x00\x00\x00\x00", OpCode::BinFloat(n), assert_eq!(n, -123.0));
+        t!(b"G\xc0^\xdd/\x1a\x9f\xbew", OpCode::BinFloat(n), assert_eq!(n, -123.456));
     }
 
     #[test]
     fn test_empty_list() {
-        t!(b"]", Ok(OpCode::EmptyList), assert!(true));
+        t!(b"]", OpCode::EmptyList, assert!(true));
     }
 
     #[test]
     fn test_append() {
-        t!(b"a", Ok(OpCode::Append), assert!(true));
+        t!(b"a", OpCode::Append, assert!(true));
     }
 
     #[test]
     fn test_appends() {
-        t!(b"e", Ok(OpCode::Appends), assert!(true));
+        t!(b"e", OpCode::Appends, assert!(true));
     }
 
     #[test]
     fn test_list() {
-        t!(b"l", Ok(OpCode::List), assert!(true));
+        t!(b"l", OpCode::List, assert!(true));
     }
 
     #[test]
     fn test_empty_tuple() {
-        t!(b")", Ok(OpCode::EmptyTuple), assert!(true));
+        t!(b")", OpCode::EmptyTuple, assert!(true));
     }
 
     #[test]
     fn test_tuple() {
-        t!(b"t", Ok(OpCode::Tuple), assert!(true));
+        t!(b"t", OpCode::Tuple, assert!(true));
     }
 
     #[test]
     fn test_tuple1() {
-        t!(b"\x85", Ok(OpCode::Tuple1), assert!(true));
+        t!(b"\x85", OpCode::Tuple1, assert!(true));
     }
 
     #[test]
     fn test_tuple2() {
-        t!(b"\x86", Ok(OpCode::Tuple2), assert!(true));
+        t!(b"\x86", OpCode::Tuple2, assert!(true));
     }
 
     #[test]
     fn test_tuple3() {
-        t!(b"\x87", Ok(OpCode::Tuple3), assert!(true));
+        t!(b"\x87", OpCode::Tuple3, assert!(true));
     }
 
     #[test]
     fn test_empty_dict() {
-        t!(b"}", Ok(OpCode::EmptyDict), assert!(true));
+        t!(b"}", OpCode::EmptyDict, assert!(true));
     }
 
     #[test]
     fn test_dict() {
-        t!(b"d", Ok(OpCode::Dict), assert!(true));
+        t!(b"d", OpCode::Dict, assert!(true));
     }
 
     #[test]
     fn test_set_item() {
-        t!(b"s", Ok(OpCode::SetItem), assert!(true));
+        t!(b"s", OpCode::SetItem, assert!(true));
     }
 
     #[test]
     fn test_set_items() {
-        t!(b"u", Ok(OpCode::SetItems), assert!(true));
+        t!(b"u", OpCode::SetItems, assert!(true));
     }
 
     #[test]
     fn test_pop() {
-        t!(b"0", Ok(OpCode::Pop), assert!(true));
+        t!(b"0", OpCode::Pop, assert!(true));
     }
 
     #[test]
     fn test_dup() {
-        t!(b"2", Ok(OpCode::Dup), assert!(true));
+        t!(b"2", OpCode::Dup, assert!(true));
     }
 
     #[test]
     fn test_mark() {
-        t!(b"(", Ok(OpCode::Mark), assert!(true));
+        t!(b"(", OpCode::Mark, assert!(true));
     }
 
     #[test]
     fn test_pop_mark() {
-        t!(b"1", Ok(OpCode::PopMark), assert!(true));
+        t!(b"1", OpCode::PopMark, assert!(true));
     }
 
     #[test]
     fn test_get() {
-        t!(b"g", Err(Error::InvalidString), assert!(true));
-        t!(b"g\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"gabc\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"g-123\n", Err(Error::NegativeLength), assert!(true));
-        t!(b"g123\n", Ok(OpCode::Get(n)), assert_eq!(n, 123));
+        e!(b"g", Error::InvalidString);
+        e!(b"g\n", Error::InvalidInt);
+        e!(b"gabc\n", Error::InvalidInt);
+        e!(b"g-123\n", Error::NegativeLength);
+        t!(b"g123\n", OpCode::Get(n), assert_eq!(n, 123));
     }
 
     #[test]
     fn test_bin_get() {
-        t!(b"h", Err(Error::ReadError(_)), assert!(true));
-        t!(b"h\x00", Ok(OpCode::BinGet(n)), assert_eq!(n, 0));
-        t!(b"h\x0a", Ok(OpCode::BinGet(n)), assert_eq!(n, 10));
-        t!(b"h\xfe", Ok(OpCode::BinGet(n)), assert_eq!(n, 254));
+        e!(b"h", Error::ReadError(_));
+        t!(b"h\x00", OpCode::BinGet(n), assert_eq!(n, 0));
+        t!(b"h\x0a", OpCode::BinGet(n), assert_eq!(n, 10));
+        t!(b"h\xfe", OpCode::BinGet(n), assert_eq!(n, 254));
 
     }
 
     #[test]
     fn test_long_bin_get() {
-        t!(b"j\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"j\x0a\x00\x00\x00", Ok(OpCode::LongBinGet(n)), assert_eq!(n, 10));
-        t!(b"j\x0a\x00\x00\x01", Ok(OpCode::LongBinGet(n)), assert_eq!(n, 16777226));
+        e!(b"j\x0a", Error::ReadError(_));
+        t!(b"j\x0a\x00\x00\x00", OpCode::LongBinGet(n), assert_eq!(n, 10));
+        t!(b"j\x0a\x00\x00\x01", OpCode::LongBinGet(n), assert_eq!(n, 16777226));
     }
 
     #[test]
     fn test_put() {
-        t!(b"p", Err(Error::InvalidString), assert!(true));
-        t!(b"p\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"pabc\n", Err(Error::InvalidInt), assert!(true));
-        t!(b"p-123\n", Err(Error::NegativeLength), assert!(true));
-        t!(b"p123\n", Ok(OpCode::Put(n)), assert_eq!(n, 123));
+        e!(b"p", Error::InvalidString);
+        e!(b"p\n", Error::InvalidInt);
+        e!(b"pabc\n", Error::InvalidInt);
+        e!(b"p-123\n", Error::NegativeLength);
+        t!(b"p123\n", OpCode::Put(n), assert_eq!(n, 123));
     }
 
     #[test]
     fn test_bin_put() {
-        t!(b"q", Err(Error::ReadError(_)), assert!(true));
-        t!(b"q\x00", Ok(OpCode::BinPut(n)), assert_eq!(n, 0));
-        t!(b"q\x0a", Ok(OpCode::BinPut(n)), assert_eq!(n, 10));
-        t!(b"q\xfe", Ok(OpCode::BinPut(n)), assert_eq!(n, 254));
+        e!(b"q", Error::ReadError(_));
+        t!(b"q\x00", OpCode::BinPut(n), assert_eq!(n, 0));
+        t!(b"q\x0a", OpCode::BinPut(n), assert_eq!(n, 10));
+        t!(b"q\xfe", OpCode::BinPut(n), assert_eq!(n, 254));
     }
 
     #[test]
     fn test_long_bin_put() {
-        t!(b"r\x0a", Err(Error::ReadError(_)), assert!(true));
-        t!(b"r\x0a\x00\x00\x00", Ok(OpCode::LongBinPut(n)), assert_eq!(n, 10));
-        t!(b"r\x0a\x00\x00\x01", Ok(OpCode::LongBinPut(n)), assert_eq!(n, 16777226));
+        e!(b"r\x0a", Error::ReadError(_));
+        t!(b"r\x0a\x00\x00\x00", OpCode::LongBinPut(n), assert_eq!(n, 10));
+        t!(b"r\x0a\x00\x00\x01", OpCode::LongBinPut(n), assert_eq!(n, 16777226));
     }
 
     #[test]
     fn test_ext1() {
-        t!(b"\x82", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x82\x0a", Ok(OpCode::Ext1(n)), assert_eq!(n, 10));
+        e!(b"\x82", Error::ReadError(_));
+        t!(b"\x82\x0a", OpCode::Ext1(n), assert_eq!(n, 10));
     }
 
     #[test]
     fn test_ext2() {
-        t!(b"\x83", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x83\x01", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x83\x0a\x00", Ok(OpCode::Ext2(n)), assert_eq!(n, 10));
-        t!(b"\x83\x0a\x01", Ok(OpCode::Ext2(n)), assert_eq!(n, 266));
+        e!(b"\x83", Error::ReadError(_));
+        e!(b"\x83\x01", Error::ReadError(_));
+        t!(b"\x83\x0a\x00", OpCode::Ext2(n), assert_eq!(n, 10));
+        t!(b"\x83\x0a\x01", OpCode::Ext2(n), assert_eq!(n, 266));
     }
 
     #[test]
     fn test_ext4() {
-        t!(b"\x84", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x84\x01\x01\x01", Err(Error::ReadError(_)), assert!(true));
-        t!(b"\x84\x0a\x00\x00\x00", Ok(OpCode::Ext4(n)), assert_eq!(n, 10));
-        t!(b"\x84\x0a\x01\x00\x01", Ok(OpCode::Ext4(n)), assert_eq!(n, 16777482));
+        e!(b"\x84", Error::ReadError(_));
+        e!(b"\x84\x01\x01\x01", Error::ReadError(_));
+        t!(b"\x84\x0a\x00\x00\x00", OpCode::Ext4(n), assert_eq!(n, 10));
+        t!(b"\x84\x0a\x01\x00\x01", OpCode::Ext4(n), assert_eq!(n, 16777482));
     }
 }
