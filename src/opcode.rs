@@ -339,7 +339,7 @@ mod tests {
     }
 
     fn test_stop() {
-        t!(b".", OpCode::Stop, assert!(true));
+        t!(b".", OpCode::Stop, ());
     }
 
     #[test]
@@ -425,17 +425,17 @@ mod tests {
 
     #[test]
     fn test_none() {
-        t!(b"N", OpCode::None, assert!(true));
+        t!(b"N", OpCode::None, ());
     }
 
     #[test]
     fn test_new_true() {
-        t!(b"\x88", OpCode::NewTrue, assert!(true));
+        t!(b"\x88", OpCode::NewTrue, ());
     }
 
     #[test]
     fn test_new_false() {
-        t!(b"\x89", OpCode::NewFalse, assert!(true));
+        t!(b"\x89", OpCode::NewFalse, ());
     }
 
     #[test]
@@ -471,87 +471,87 @@ mod tests {
 
     #[test]
     fn test_empty_list() {
-        t!(b"]", OpCode::EmptyList, assert!(true));
+        t!(b"]", OpCode::EmptyList, ());
     }
 
     #[test]
     fn test_append() {
-        t!(b"a", OpCode::Append, assert!(true));
+        t!(b"a", OpCode::Append, ());
     }
 
     #[test]
     fn test_appends() {
-        t!(b"e", OpCode::Appends, assert!(true));
+        t!(b"e", OpCode::Appends, ());
     }
 
     #[test]
     fn test_list() {
-        t!(b"l", OpCode::List, assert!(true));
+        t!(b"l", OpCode::List, ());
     }
 
     #[test]
     fn test_empty_tuple() {
-        t!(b")", OpCode::EmptyTuple, assert!(true));
+        t!(b")", OpCode::EmptyTuple, ());
     }
 
     #[test]
     fn test_tuple() {
-        t!(b"t", OpCode::Tuple, assert!(true));
+        t!(b"t", OpCode::Tuple, ());
     }
 
     #[test]
     fn test_tuple1() {
-        t!(b"\x85", OpCode::Tuple1, assert!(true));
+        t!(b"\x85", OpCode::Tuple1, ());
     }
 
     #[test]
     fn test_tuple2() {
-        t!(b"\x86", OpCode::Tuple2, assert!(true));
+        t!(b"\x86", OpCode::Tuple2, ());
     }
 
     #[test]
     fn test_tuple3() {
-        t!(b"\x87", OpCode::Tuple3, assert!(true));
+        t!(b"\x87", OpCode::Tuple3, ());
     }
 
     #[test]
     fn test_empty_dict() {
-        t!(b"}", OpCode::EmptyDict, assert!(true));
+        t!(b"}", OpCode::EmptyDict, ());
     }
 
     #[test]
     fn test_dict() {
-        t!(b"d", OpCode::Dict, assert!(true));
+        t!(b"d", OpCode::Dict, ());
     }
 
     #[test]
     fn test_set_item() {
-        t!(b"s", OpCode::SetItem, assert!(true));
+        t!(b"s", OpCode::SetItem, ());
     }
 
     #[test]
     fn test_set_items() {
-        t!(b"u", OpCode::SetItems, assert!(true));
+        t!(b"u", OpCode::SetItems, ());
     }
 
     #[test]
     fn test_pop() {
-        t!(b"0", OpCode::Pop, assert!(true));
+        t!(b"0", OpCode::Pop, ());
     }
 
     #[test]
     fn test_dup() {
-        t!(b"2", OpCode::Dup, assert!(true));
+        t!(b"2", OpCode::Dup, ());
     }
 
     #[test]
     fn test_mark() {
-        t!(b"(", OpCode::Mark, assert!(true));
+        t!(b"(", OpCode::Mark, ());
     }
 
     #[test]
     fn test_pop_mark() {
-        t!(b"1", OpCode::PopMark, assert!(true));
+        t!(b"1", OpCode::PopMark, ());
     }
 
     #[test]
