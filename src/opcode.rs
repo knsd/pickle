@@ -28,6 +28,7 @@ quick_error! {
         InvalidString {
             from(FromUtf8Error)
         }
+        InvalidProto
         ExpectedTrailingL
         InvalidLong
         NegativeLength
@@ -36,6 +37,9 @@ quick_error! {
 
 #[derive(Debug)]
 pub enum OpCode {
+    Proto(u8),
+    Stop,
+
     Int(i64),
     BinInt(i32),
     BinInt1(u8),
@@ -98,8 +102,6 @@ pub enum OpCode {
     Inst(Vec<u8>, Vec<u8>),
     Obj,
     NewObj,
-    Proto(u8),
-    Stop,
     PersId(Vec<u8>),
     BinPersId,
 }
@@ -178,6 +180,14 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
 
     let marker = try!(rd.read_u8());
     return Ok(match marker {
+        b'\x80' => {
+            let version = try!(rd.read_u8());
+            if version < 2 {
+                return Err(Error::InvalidProto)
+            }
+            OpCode::Proto(version)
+        }
+        b'.' => OpCode::Stop,
         b'I' => OpCode::Int(try!(read_decimal_int(rd))),
         b'J' => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
         b'K' => OpCode::BinInt1(try!(rd.read_u8())),
@@ -305,6 +315,19 @@ mod tests {
 
     macro_rules! n {
         ($x: expr) => ({FromPrimitive::from_isize($x).unwrap()})
+    }
+
+    #[test]
+    fn test_proto() {
+        t!(b"\x80", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x80\x00", Err(Error::InvalidProto), assert!(true));
+        t!(b"\x80\x01", Err(Error::InvalidProto), assert!(true));
+        t!(b"\x80\x02", Ok(OpCode::Proto(n)), assert_eq!(n, 2));
+        t!(b"\x80\x0a", Ok(OpCode::Proto(n)), assert_eq!(n, 10));
+    }
+
+    fn test_stop() {
+        t!(b".", Ok(OpCode::Stop), assert!(true));
     }
 
     #[test]
