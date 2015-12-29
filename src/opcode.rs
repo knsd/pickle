@@ -175,24 +175,24 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
 
     let marker = try!(rd.read_u8());
     return Ok(match marker {
-        73 => OpCode::Int(try!(read_decimal_int(rd))),
-        74 => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
-        75 => OpCode::BinInt1(try!(rd.read_u8())),
-        77 => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
-        76 => OpCode::Long(try!(read_decimal_long(rd))),
-        138 => {
+        b'I' => OpCode::Int(try!(read_decimal_int(rd))),
+        b'J' => OpCode::BinInt(try!(rd.read_i32::<LittleEndian>())),
+        b'K' => OpCode::BinInt1(try!(rd.read_u8())),
+        b'M' => OpCode::BinInt2(try!(rd.read_u16::<LittleEndian>())),
+        b'L' => OpCode::Long(try!(read_decimal_long(rd))),
+        b'\x8a' => {
             let length = try!(rd.read_u8());
             OpCode::Long1(try!(read_long(rd, length as usize)))
         },
-        139 => {
+        b'\x8b' => {
             let length = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(length);
 
             OpCode::Long4(try!(read_long(rd, length as usize)))
         },
 
-        83 => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
-        84 => {
+        b'S' => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
+        b'T' => {
             let length = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(length);
 
@@ -200,67 +200,67 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             try!(read_exact(rd, &mut buf));
             OpCode::BinString(buf)
         }
-        85 => {
+        b'U' => {
             let length = try!(rd.read_u8());
             let mut buf = vec![0; length as usize];
             try!(read_exact(rd, &mut buf));
             OpCode::ShortBinString(buf)
         }
 
-        78 => OpCode::None,
-        136 => OpCode::NewTrue,
-        137 => OpCode::NewFalse,
+        b'N' => OpCode::None,
+        b'\x88' => OpCode::NewTrue,
+        b'\x89' => OpCode::NewFalse,
 
-        86 => unimplemented!(), // Unicode
-        88 => unimplemented!(), // BinUnicode
+        b'V' => unimplemented!(), // Unicode
+        b'W' => unimplemented!(), // BinUnicode
 
-        70 => {
+        b'F' => {
             let s = try!(read_until_newline(rd));
             OpCode::Float(try!(try!(from_utf8(&s)).parse()))
         },
-        71 => {
+        b'G' => {
             OpCode::BinFloat(try!(rd.read_f64::<BigEndian>()))
         }
 
-        93 => OpCode::EmptyList,
-        97 => OpCode::Append,
-        101 => OpCode::Appends,
-        108 => OpCode::List,
+        b']' => OpCode::EmptyList,
+        b'a' => OpCode::Append,
+        b'e' => OpCode::Appends,
+        b'l' => OpCode::List,
 
-        41 => OpCode::EmptyTuple,
-        116 => OpCode::Tuple,
-        133 => OpCode::Tuple1,
-        134 => OpCode::Tuple2,
-        135 => OpCode::Tuple3,
+        b')' => OpCode::EmptyTuple,
+        b't' => OpCode::Tuple,
+        b'\x85' => OpCode::Tuple1,
+        b'\x86' => OpCode::Tuple2,
+        b'\x87' => OpCode::Tuple3,
 
-        125 => OpCode::EmptyDict,
-        100 => OpCode::Dict,
-        115 => OpCode::SetItem,
-        117 => OpCode::SetItems,
+        b'}' => OpCode::EmptyDict,
+        b'd' => OpCode::Dict,
+        b's' => OpCode::SetItem,
+        b'u' => OpCode::SetItems,
 
-        48 => OpCode::Pop,
-        50 => OpCode::Dup,
-        40 => OpCode::Mark,
-        49 => OpCode::PopMark,
+        b'0' => OpCode::Pop,
+        b'2' => OpCode::Dup,
+        b'(' => OpCode::Mark,
+        b'1' => OpCode::PopMark,
 
-        103 => {
+        b'g' => {
             let n = try!(read_decimal_int(rd));
             ensure_not_negative!(n);
             OpCode::Get(n as usize)
         },
-        104 => OpCode::BinGet(try!(rd.read_u8()) as usize),
-        106 => {
+        b'h' => OpCode::BinGet(try!(rd.read_u8()) as usize),
+        b'j' => {
             let n = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(n);
             OpCode::LongBinGet(n as usize)
         }
-        112 => {
+        b'p' => {
             let n = try!(read_decimal_int(rd));
             ensure_not_negative!(n);
             OpCode::Put(n as usize)
         },
-        113 => OpCode::BinPut(try!(rd.read_u8()) as usize),
-        114 => {
+        b'q' => OpCode::BinPut(try!(rd.read_u8()) as usize),
+        b'r' => {
             let n = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(n);
             OpCode::LongBinPut(n as usize)
