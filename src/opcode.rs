@@ -275,6 +275,10 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::LongBinPut(n as usize)
         }
 
+        b'\x82' => OpCode::Ext1(try!(rd.read_u8())),
+        b'\x83' => OpCode::Ext2(try!(rd.read_u16::<LittleEndian>())),
+        b'\x84' => OpCode::Ext4(try!(rd.read_i32::<LittleEndian>())),  // TODO: ensure_not_negative?
+
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -562,5 +566,27 @@ mod tests {
         t!(b"r\x0a", Err(Error::ReadError(_)), assert!(true));
         t!(b"r\x0a\x00\x00\x00", Ok(OpCode::LongBinPut(n)), assert_eq!(n, 10));
         t!(b"r\x0a\x00\x00\x01", Ok(OpCode::LongBinPut(n)), assert_eq!(n, 16777226));
+    }
+
+    #[test]
+    fn test_ext1() {
+        t!(b"\x82", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x82\x0a", Ok(OpCode::Ext1(n)), assert_eq!(n, 10));
+    }
+
+    #[test]
+    fn test_ext2() {
+        t!(b"\x83", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x83\x01", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x83\x0a\x00", Ok(OpCode::Ext2(n)), assert_eq!(n, 10));
+        t!(b"\x83\x0a\x01", Ok(OpCode::Ext2(n)), assert_eq!(n, 266));
+    }
+
+    #[test]
+    fn test_ext4() {
+        t!(b"\x84", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x84\x01\x01\x01", Err(Error::ReadError(_)), assert!(true));
+        t!(b"\x84\x0a\x00\x00\x00", Ok(OpCode::Ext4(n)), assert_eq!(n, 10));
+        t!(b"\x84\x0a\x01\x00\x01", Ok(OpCode::Ext4(n)), assert_eq!(n, 16777482));
     }
 }
