@@ -40,7 +40,7 @@ pub enum OpCode {
     Proto(u8),
     Stop,
 
-    Int(i64),
+    Int(i64),  // TODO: Boolean can be encoded here
     BinInt(i32),
     BinInt1(u8),
     BinInt2(u16),
