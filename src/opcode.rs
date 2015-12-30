@@ -293,6 +293,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'R' => OpCode::Reduce,
         b'b' => OpCode::Build,
         b'i' => OpCode::Inst(try!(read_until_newline(rd)), try!(read_until_newline(rd))),
+        b'o' => OpCode::Obj,
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -654,5 +655,10 @@ mod tests {
         e!(b"i\n", Error::InvalidString);
         t!(b"i\n\n", OpCode::Inst(a, b), {assert_eq!(a, b""); assert_eq!(b, b"");});
         t!(b"imodule\nclass\n", OpCode::Inst(a, b), {assert_eq!(a, b"module"); assert_eq!(b, b"class");});
+    }
+
+    #[test]
+    fn test_obj() {
+        t!("o", OpCode::Obj, ())
     }
 }
