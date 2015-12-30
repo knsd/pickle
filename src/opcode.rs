@@ -291,6 +291,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
 
         b'c' => OpCode::Global(try!(read_until_newline(rd)), try!(read_until_newline(rd))),
         b'R' => OpCode::Reduce,
+        b'b' => OpCode::Build,
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -639,5 +640,10 @@ mod tests {
     #[test]
     fn test_reduce() {
         t!("R", OpCode::Reduce, ())
+    }
+
+    #[test]
+    fn test_build() {
+        t!("b", OpCode::Build, ())
     }
 }
