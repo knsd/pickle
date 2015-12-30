@@ -294,6 +294,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'b' => OpCode::Build,
         b'i' => OpCode::Inst(try!(read_until_newline(rd)), try!(read_until_newline(rd))),
         b'o' => OpCode::Obj,
+        b'\x81' => OpCode::NewObj,
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -660,5 +661,10 @@ mod tests {
     #[test]
     fn test_obj() {
         t!("o", OpCode::Obj, ())
+    }
+
+    #[test]
+    fn test_new_obj() {
+        t!(b"\x81", OpCode::NewObj, ())
     }
 }
