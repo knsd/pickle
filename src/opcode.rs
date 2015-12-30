@@ -289,6 +289,8 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'\x83' => OpCode::Ext2(try!(rd.read_u16::<LittleEndian>())),
         b'\x84' => OpCode::Ext4(try!(rd.read_i32::<LittleEndian>())),  // TODO: ensure_not_negative?
 
+        b'c' => OpCode::Global(try!(read_until_newline(rd)), try!(read_until_newline(rd))),
+
         c => return Err(Error::UnknownOpcode(c)),
     })
 }
@@ -623,5 +625,13 @@ mod tests {
         e!(b"\x84\x01\x01\x01", Error::ReadError(_));
         t!(b"\x84\x0a\x00\x00\x00", OpCode::Ext4(n), assert_eq!(n, 10));
         t!(b"\x84\x0a\x01\x00\x01", OpCode::Ext4(n), assert_eq!(n, 16777482));
+    }
+
+    #[test]
+    fn test_global() {
+        e!(b"c", Error::InvalidString);
+        e!(b"c\n", Error::InvalidString);
+        t!(b"c\n\n", OpCode::Global(a, b), {assert_eq!(a, b""); assert_eq!(b, b"");});
+        t!(b"cmodule\nclass\n", OpCode::Global(a, b), {assert_eq!(a, b"module"); assert_eq!(b, b"class");});
     }
 }
