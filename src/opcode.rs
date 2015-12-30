@@ -296,6 +296,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'o' => OpCode::Obj,
         b'\x81' => OpCode::NewObj,
         b'P' => OpCode::PersId(try!(read_until_newline(rd))),
+        b'Q' => OpCode::BinPersId,
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -676,5 +677,10 @@ mod tests {
         t!(b"P\n", OpCode::PersId(a), assert_eq!(a, b""));
         t!(b"P\n\n", OpCode::PersId(a), assert_eq!(a, b""));
         t!(b"Pmodule\nclass\n", OpCode::PersId(a), assert_eq!(a, b"module"));
+    }
+
+    #[test]
+    fn test_bin_persid() {
+        t!(b"Q", OpCode::BinPersId, ())
     }
 }
