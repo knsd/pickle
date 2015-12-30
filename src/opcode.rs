@@ -129,8 +129,8 @@ fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + B
 
     // Skip last symbol — \n
     match buf.split_last() {
-        None => Err(Error::InvalidString),
-        Some((_last, init)) => Ok(init.to_vec()),
+        Some((&b'\n', init)) => Ok(init.to_vec()),
+        _ => return Err(Error::InvalidString),
     }
 }
 
@@ -295,6 +295,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'i' => OpCode::Inst(try!(read_until_newline(rd)), try!(read_until_newline(rd))),
         b'o' => OpCode::Obj,
         b'\x81' => OpCode::NewObj,
+        b'P' => OpCode::PersId(try!(read_until_newline(rd))),
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -666,5 +667,14 @@ mod tests {
     #[test]
     fn test_new_obj() {
         t!(b"\x81", OpCode::NewObj, ())
+    }
+
+    #[test]
+    fn test_persid() {
+        e!(b"P", Error::InvalidString);
+        e!(b"Pabc", Error::InvalidString);
+        t!(b"P\n", OpCode::PersId(a), assert_eq!(a, b""));
+        t!(b"P\n\n", OpCode::PersId(a), assert_eq!(a, b""));
+        t!(b"Pmodule\nclass\n", OpCode::PersId(a), assert_eq!(a, b"module"));
     }
 }
