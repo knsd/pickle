@@ -290,6 +290,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'\x84' => OpCode::Ext4(try!(rd.read_i32::<LittleEndian>())),  // TODO: ensure_not_negative?
 
         b'c' => OpCode::Global(try!(read_until_newline(rd)), try!(read_until_newline(rd))),
+        b'R' => OpCode::Reduce,
 
         c => return Err(Error::UnknownOpcode(c)),
     })
@@ -633,5 +634,10 @@ mod tests {
         e!(b"c\n", Error::InvalidString);
         t!(b"c\n\n", OpCode::Global(a, b), {assert_eq!(a, b""); assert_eq!(b, b"");});
         t!(b"cmodule\nclass\n", OpCode::Global(a, b), {assert_eq!(a, b"module"); assert_eq!(b, b"class");});
+    }
+
+    #[test]
+    fn test_reduce() {
+        t!("R", OpCode::Reduce, ())
     }
 }
