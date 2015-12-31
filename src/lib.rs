@@ -4,3 +4,4 @@ extern crate byteorder;
 
 #[allow(dead_code)]
 pub mod opcode;
+mod string;
