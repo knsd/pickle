@@ -20,11 +20,11 @@ quick_error! {
         }
         UnknownOpcode(opcode: u8) {}
         InvalidInt {
-            from(Utf8Error)
             from(ParseIntError)
             from(ParseBigIntError)
         }
         InvalidFloat {
+            from(Utf8Error)
             from(ParseFloatError)
         }
         InvalidString {
@@ -139,9 +139,57 @@ fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + B
     }
 }
 
+pub fn dec_to_digit(c: u8) -> Option<u8> {
+    Some(match c {
+        b'0' ... b'9' => c - b'0',
+        _ => return None,
+    })
+}
+
+fn from_bytes(src: &[u8]) -> Result<i64, Error> {
+    if src.is_empty() {
+        return Err(Error::InvalidInt);
+    }
+
+    let (is_positive, digits) = match src[0] {
+        b'+' => (true, &src[1..]),
+        b'-' => (false, &src[1..]),
+        _ => (true, src)
+    };
+
+    if digits.is_empty() {
+        return Err(Error::InvalidInt);
+    }
+
+    let mut result = 0;
+
+    if is_positive {
+        // The number is positive
+        for &c in digits {
+            let x = match dec_to_digit(c) {
+                Some(x) => x as i64,
+                None => return Err(Error::InvalidInt),
+            };
+            result = result * 10;
+            result = result + x;
+        }
+    } else {
+        // The number is negative
+        for &c in digits {
+            let x = match dec_to_digit(c) {
+                Some(x) => x as i64,
+                None => return Err(Error::InvalidInt),
+            };
+            result = result * 10;
+            result = result - x;
+        }
+    }
+    Ok(result)
+}
+
 fn read_decimal_int<R>(rd: &mut R) -> Result<i64, Error> where R: Read + BufRead {
     let s = try!(read_until_newline(rd));
-    Ok(try!(try!(from_utf8(&s)).parse()))
+    Ok(try!(from_bytes(&s)))
 }
 
 fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + BufRead {
