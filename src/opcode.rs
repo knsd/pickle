@@ -152,7 +152,10 @@ fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + Buf
         Some(_) => return Err(Error::ExpectedTrailingL),
     };
 
-    Ok(try!(try!(from_utf8(&init)).parse())) // TODO: http://rust-num.github.io/num/num/bigint/struct.BigInt.html#method.parse_bytes
+    match BigInt::parse_bytes(&init, 10) {
+        Some(i) => Ok(i),
+        None => Err(Error::InvalidInt)
+    }
 }
 
 fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
