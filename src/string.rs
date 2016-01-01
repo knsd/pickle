@@ -25,7 +25,7 @@ fn oct_to_digit(c: u8) -> Result<u8, Error> {
     })
 }
 
-fn unescape(s: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn unescape(s: &[u8]) -> Result<Vec<u8>, Error> {
     let mut buf = Vec::with_capacity(s.len());
     let mut oct_buf = VecDeque::with_capacity(3);
 
