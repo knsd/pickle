@@ -7,6 +7,8 @@ use num::{Zero};
 use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
 
+use string::{unescape, Error as UnescapeError};
+
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
@@ -32,6 +34,9 @@ quick_error! {
         ExpectedTrailingL
         InvalidLong
         NegativeLength
+        UnescapeError(err: UnescapeError) {
+            from()
+        }
     }
 }
 
@@ -204,7 +209,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::Long4(try!(read_long(rd, length as usize)))
         },
 
-        b'S' => {OpCode::String(try!(read_until_newline(rd)))} // TODO: escaping
+        b'S' => OpCode::String(try!(unescape(&try!(read_until_newline(rd))))),
         b'T' => {
             let length = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(length);
@@ -412,7 +417,7 @@ mod tests {
         t!(b"S\n", OpCode::String(s), assert_eq!(s, b""));
         t!(b"Sabc\n", OpCode::String(s), assert_eq!(s, b"abc"));
         t!(b"S123\n", OpCode::String(s), assert_eq!(s, b"123"));
-        t!(b"S\\n\n", OpCode::String(s), assert_eq!(s, b"\\n"));
+        t!(b"S\\n\n", OpCode::String(s), assert_eq!(s, b"\n"));
     }
 
     #[test]
