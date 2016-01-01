@@ -1,22 +1,31 @@
 use std::collections::{VecDeque};
 
-fn hex_to_digit(c: u8) -> Result<u8, &'static str> {
+quick_error! {
+    #[derive(Debug)]
+    pub enum Error {
+        InvalidHexValue(c: u8)
+        InvalidOctValue(c: u8)
+        UnexpectedEnd
+    }
+}
+
+fn hex_to_digit(c: u8) -> Result<u8, Error> {
     Ok(match c {
         b'0' ... b'9' => c - b'0',
         b'a' ... b'f' => c - b'a' + 10,
         b'A' ... b'F' => c - b'A' + 10,
-        _ => return Err("Invalid hex value"),
+        _ => return Err(Error::InvalidHexValue(c)),
     })
 }
 
-fn oct_to_digit(c: u8) -> Result<u8, &'static str> {
+fn oct_to_digit(c: u8) -> Result<u8, Error> {
     Ok(match c {
         b'0' ... b'7' => c - b'0',
-        _ => return Err("Invalid oct value"),
+        _ => return Err(Error::InvalidOctValue(c)),
     })
 }
 
-fn unescape(s: &[u8]) -> Result<Vec<u8>, &'static str> {
+fn unescape(s: &[u8]) -> Result<Vec<u8>, Error> {
     let mut buf = Vec::with_capacity(s.len());
     let mut oct_buf = VecDeque::with_capacity(3);
 
@@ -25,7 +34,7 @@ fn unescape(s: &[u8]) -> Result<Vec<u8>, &'static str> {
     macro_rules! read {
         () => ({
             match s.get(i) {
-                None => return Err("Invalid escape"),
+                None => return Err(Error::UnexpectedEnd),
                 Some(c) => {
                     i += 1;
                     *c
