@@ -140,10 +140,11 @@ fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + B
 }
 
 pub fn dec_to_digit(c: u8) -> Option<u8> {
-    Some(match c {
+    let val = match c {
         b'0' ... b'9' => c - b'0',
         _ => return None,
-    })
+    };
+    Some(val)
 }
 
 fn from_bytes(src: &[u8]) -> Result<i64, Error> {
