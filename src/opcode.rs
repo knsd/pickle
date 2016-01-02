@@ -39,12 +39,18 @@ quick_error! {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum BooleanOrInt {
+    Boolean(bool),
+    Int(i64),
+}
+
 #[derive(Debug)]
 pub enum OpCode {
     Proto(u8),
     Stop,
 
-    Int(i64),  // TODO: Boolean can be encoded here
+    Int(BooleanOrInt),
     BinInt(i32),
     BinInt1(u8),
     BinInt2(u16),
@@ -187,9 +193,14 @@ fn from_bytes(src: &[u8]) -> Result<i64, Error> {
     Ok(result)
 }
 
-fn read_decimal_int<R>(rd: &mut R) -> Result<i64, Error> where R: Read + BufRead {
+fn read_decimal_int<R>(rd: &mut R) -> Result<BooleanOrInt, Error> where R: Read + BufRead {
     let s = try!(read_until_newline(rd));
-    Ok(try!(from_bytes(&s)))
+    let val = match &s[..] {
+        b"00" => BooleanOrInt::Boolean(false),
+        b"01" => BooleanOrInt::Boolean(true),
+        _ => BooleanOrInt::Int(try!(from_bytes(&s)))
+    };
+    Ok(val)
 }
 
 fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + BufRead {
@@ -319,7 +330,11 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'1' => OpCode::PopMark,
 
         b'g' => {
-            let n = try!(read_decimal_int(rd));
+            let n = match try!(read_decimal_int(rd)) {
+                BooleanOrInt::Int(n) => n,
+                BooleanOrInt::Boolean(false) => 0,
+                BooleanOrInt::Boolean(true) => 1,
+            };
             ensure_not_negative!(n);
             OpCode::Get(n as usize)
         },
@@ -330,7 +345,11 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::LongBinGet(n as usize)
         }
         b'p' => {
-            let n = try!(read_decimal_int(rd));
+            let n = match try!(read_decimal_int(rd)) {
+                BooleanOrInt::Int(n) => n,
+                BooleanOrInt::Boolean(false) => 0,
+                BooleanOrInt::Boolean(true) => 1,
+            };
             ensure_not_negative!(n);
             OpCode::Put(n as usize)
         },
@@ -364,7 +383,7 @@ mod tests {
 
     use num::{FromPrimitive};
 
-    use super::{OpCode, Error, read_opcode};
+    use super::{BooleanOrInt, OpCode, Error, read_opcode};
 
     macro_rules! t {
         ($buffer: expr, $pat:pat, $result:expr) => ({
@@ -412,8 +431,11 @@ mod tests {
         e!(b"I", Error::InvalidString);
         e!(b"I\n", Error::InvalidInt);
         e!(b"Iabc\n", Error::InvalidInt);
-        t!(b"I123\n", OpCode::Int(n), assert_eq!(n, 123));
-        t!(b"I-123\n", OpCode::Int(n), assert_eq!(n, -123));
+        t!(b"I123\n", OpCode::Int(n), assert_eq!(n, BooleanOrInt::Int(123)));
+        t!(b"I-123\n", OpCode::Int(n), assert_eq!(n, BooleanOrInt::Int(-123)));
+        t!(b"I00\n", OpCode::Int(n), assert_eq!(n, BooleanOrInt::Boolean(false)));
+        t!(b"I01\n", OpCode::Int(n), assert_eq!(n, BooleanOrInt::Boolean(true)));
+        t!(b"I02\n", OpCode::Int(n), assert_eq!(n, BooleanOrInt::Int(2)));
     }
 
     #[test]
