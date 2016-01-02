@@ -1,10 +1,10 @@
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::str::{from_utf8, Utf8Error};
 use std::string::{FromUtf8Error};
-use std::num::{ParseIntError, ParseFloatError};
+use std::num::{ParseFloatError};
 
 use num::{Zero};
-use num::bigint::{BigInt, ToBigInt, Sign, ParseBigIntError};
+use num::bigint::{BigInt, ToBigInt, Sign};
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
 
 use string::{unescape, Error as UnescapeError};
@@ -19,24 +19,23 @@ quick_error! {
             from()
         }
         UnknownOpcode(opcode: u8) {}
-        InvalidInt {
-            from(ParseIntError)
-            from(ParseBigIntError)
-        }
+
+        InvalidInt
+        InvalidLong
         InvalidFloat {
             from(Utf8Error)
             from(ParseFloatError)
         }
+
         InvalidString {
             from(FromUtf8Error)
         }
-        InvalidProto
-        ExpectedTrailingL
-        InvalidLong
-        NegativeLength
         UnescapeError(err: UnescapeError) {
             from()
         }
+
+        InvalidProto(proto: u8)
+        NegativeLength
     }
 }
 
@@ -198,12 +197,12 @@ fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + Buf
     let init = match s.split_last() {
         None => return Err(Error::InvalidString),
         Some((&b'L', init)) => init,
-        Some(_) => return Err(Error::ExpectedTrailingL),
+        Some(_) => &s[..],
     };
 
     match BigInt::parse_bytes(&init, 10) {
         Some(i) => Ok(i),
-        None => Err(Error::InvalidInt)
+        None => Err(Error::InvalidLong)
     }
 }
 
@@ -240,7 +239,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'\x80' => {
             let version = try!(rd.read_u8());
             if version < 2 {
-                return Err(Error::InvalidProto)
+                return Err(Error::InvalidProto(version))
             }
             OpCode::Proto(version)
         }
@@ -398,8 +397,8 @@ mod tests {
     #[test]
     fn test_proto() {
         e!(b"\x80", Error::ReadError(_));
-        e!(b"\x80\x00", Error::InvalidProto);
-        e!(b"\x80\x01", Error::InvalidProto);
+        e!(b"\x80\x00", Error::InvalidProto(0));
+        e!(b"\x80\x01", Error::InvalidProto(1));
         t!(b"\x80\x02", OpCode::Proto(n), assert_eq!(n, 2));
         t!(b"\x80\x0a", OpCode::Proto(n), assert_eq!(n, 10));
     }
@@ -441,8 +440,9 @@ mod tests {
     fn test_long() {
         e!(b"L", Error::InvalidString);
         e!(b"L\n", Error::InvalidString);
-        e!(b"Labc\n", Error::ExpectedTrailingL);
-        e!(b"LabcL\n", Error::InvalidInt);
+        e!(b"Labc\n", Error::InvalidLong);
+        e!(b"LabcL\n", Error::InvalidLong);
+        t!(b"L123\n", OpCode::Long(n), assert_eq!(n, n!(123)));
         t!(b"L123L\n", OpCode::Long(n), assert_eq!(n, n!(123)));
     }
 
