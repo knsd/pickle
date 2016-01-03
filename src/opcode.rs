@@ -271,7 +271,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
             OpCode::Long4(try!(read_long(rd, length as usize)))
         },
 
-        b'S' => OpCode::String(try!(unescape(&try!(read_until_newline(rd))))),
+        b'S' => OpCode::String(try!(unescape(&try!(read_until_newline(rd)), false))),
         b'T' => {
             let length = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(length);

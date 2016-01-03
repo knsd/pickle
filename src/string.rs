@@ -1,10 +1,12 @@
 use std::collections::{VecDeque};
+use std::char;
 
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
         InvalidHexValue(c: u8)
         InvalidOctValue(c: u8)
+        InvalidUnicodeChar(c: u32)
         UnexpectedEnd
     }
 }
@@ -25,7 +27,7 @@ fn oct_to_digit(c: u8) -> Result<u8, Error> {
     })
 }
 
-pub fn unescape(s: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
     let mut buf = Vec::with_capacity(s.len());
     let mut oct_buf = VecDeque::with_capacity(3);
 
@@ -100,6 +102,26 @@ pub fn unescape(s: &[u8]) -> Result<Vec<u8>, Error> {
                 });
                 continue
             },
+            b'u' if unicode => {
+                let bytes: Vec<u8> = try!((0..4).map(|_| Ok(read!())).collect());
+                let digits: Vec<u8> = try!(bytes.into_iter().map(hex_to_digit).collect());
+                let value = digits.iter().enumerate().fold(0u32, |acc, (i, &v)| acc + v as u32 * (15u32.pow(i as u32)));
+                match char::from_u32(value) {
+                    Some(c) => buf.extend_from_slice(&digits),
+                    None => return Err(Error::InvalidUnicodeChar(value)),
+                }
+                ()
+            },
+            b'U' if unicode => {
+                let bytes: Vec<u8> = try!((0..8).map(|_| Ok(read!())).collect());
+                let digits: Vec<u8> = try!(bytes.into_iter().map(hex_to_digit).collect());
+                let value = digits.iter().enumerate().fold(0u32, |acc, (i, &v)| acc + v as u32 * (15u32.pow(i as u32)));
+                match char::from_u32(value) {
+                    Some(c) => buf.extend_from_slice(&digits),
+                    None => return Err(Error::InvalidUnicodeChar(value)),
+                }
+                ()
+            },
             _ => {
                 buf.push(b'\\');
                 buf.push(marker);
@@ -115,13 +137,13 @@ mod tests {
 
     #[test]
     fn test_unescape() {
-        assert_eq!(unescape(b"foo").unwrap(), b"foo");
-        assert_eq!(unescape(b"f\\noo").unwrap(), b"f\noo");
-        assert_eq!(unescape(b"f\\x01oo").unwrap(), b"f\x01oo");
-        assert_eq!(unescape(b"f\\375oo").unwrap(), b"f\xfdoo");
-        assert_eq!(unescape(b"f\\75oo").unwrap(), b"f\x3doo");
-        assert_eq!(unescape(b"f\\5oo").unwrap(), b"f\x05oo");
-        assert_eq!(unescape(b"f\\oo").unwrap(), b"f\\oo");
-        assert_eq!(unescape(b"f\\coo").unwrap(), b"f\\coo");
+        assert_eq!(unescape(b"foo", false).unwrap(), b"foo");
+        assert_eq!(unescape(b"f\\noo", false).unwrap(), b"f\noo");
+        assert_eq!(unescape(b"f\\x01oo", false).unwrap(), b"f\x01oo");
+        assert_eq!(unescape(b"f\\375oo", false).unwrap(), b"f\xfdoo");
+        assert_eq!(unescape(b"f\\75oo", false).unwrap(), b"f\x3doo");
+        assert_eq!(unescape(b"f\\5oo", false).unwrap(), b"f\x05oo");
+        assert_eq!(unescape(b"f\\oo", false).unwrap(), b"f\\oo");
+        assert_eq!(unescape(b"f\\coo", false).unwrap(), b"f\\coo");
     }
 }
