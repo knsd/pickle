@@ -11,13 +11,6 @@ quick_error! {
     }
 }
 
-fn oct_to_digit(c: u8) -> Result<u8, Error> {
-    Ok(match c {
-        b'0' ... b'7' => c - b'0',
-        _ => return Err(Error::InvalidValue),
-    })
-}
-
 pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
     let mut buf = Vec::with_capacity(s.len());
     let mut oct_buf = VecDeque::with_capacity(3);
@@ -73,17 +66,22 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
                 buf.push(try!(u8::from_ascii_radix(&hex_buf, 16)))
             }
             b'0' ... b'7' => {
-                oct_buf.push_front(try!(oct_to_digit(marker)));
-                peek!().and_then(|c| oct_to_digit(c).ok()).map(|s| {
-                    oct_buf.push_front(s);
-                    i += 1;
-
-                    peek!().and_then(|c| oct_to_digit(c).ok()).map(|s| {
-                        oct_buf.push_front(s);
+                oct_buf.push_back(marker);
+                peek!().map(|c| {
+                    if c >= b'0' && c <= b'7' {
+                        oct_buf.push_back(c);
                         i += 1;
-                    });
+
+                        peek!().map(|c| {
+                            if c >= b'0' && c <= b'7' {
+                                oct_buf.push_back(c);
+                                i += 1;
+                            }
+                        });
+                    }
                 });
-                let value = oct_buf.iter().enumerate().fold(0u16, |acc, (i, &v)| acc + v as u16 * (8u16.pow(i as u32)));
+
+                let value = try!(u16::from_ascii_radix(oct_buf.as_slices().0, 8));
                 oct_buf.clear();
                 buf.push(if value > 255 {
                     255
