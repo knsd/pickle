@@ -1,27 +1,20 @@
 use std::collections::{VecDeque};
+use from_ascii::{FromAsciiRadix, ParseIntError};
 
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
-        InvalidHexValue(c: u8)
-        InvalidOctValue(c: u8)
+        InvalidValue {
+            from(ParseIntError)
+        }
         UnexpectedEnd
     }
-}
-
-fn hex_to_digit(c: u8) -> Result<u8, Error> {
-    Ok(match c {
-        b'0' ... b'9' => c - b'0',
-        b'a' ... b'f' => c - b'a' + 10,
-        b'A' ... b'F' => c - b'A' + 10,
-        _ => return Err(Error::InvalidHexValue(c)),
-    })
 }
 
 fn oct_to_digit(c: u8) -> Result<u8, Error> {
     Ok(match c {
         b'0' ... b'7' => c - b'0',
-        _ => return Err(Error::InvalidOctValue(c)),
+        _ => return Err(Error::InvalidValue),
     })
 }
 
@@ -76,9 +69,8 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
             b't' => buf.push(b'\t'),
             b'v' => buf.push(b'\x0b'),
             b'x' => {
-                let first = try!(hex_to_digit(read!()));
-                let second = try!(hex_to_digit(read!()));
-                buf.push(first * 15 + second)
+                let hex_buf = [read!(), read!()];
+                buf.push(try!(u8::from_ascii_radix(&hex_buf, 16)))
             }
             b'0' ... b'7' => {
                 oct_buf.push_front(try!(oct_to_digit(marker)));
