@@ -1,12 +1,10 @@
 use std::collections::{VecDeque};
-use std::char;
 
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
         InvalidHexValue(c: u8)
         InvalidOctValue(c: u8)
-        InvalidUnicodeChar(c: u32)
         UnexpectedEnd
     }
 }
@@ -102,26 +100,8 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
                 });
                 continue
             },
-            b'u' if unicode => {
-                let bytes: Vec<u8> = try!((0..4).map(|_| Ok(read!())).collect());
-                let digits: Vec<u8> = try!(bytes.into_iter().map(hex_to_digit).collect());
-                let value = digits.iter().enumerate().fold(0u32, |acc, (i, &v)| acc + v as u32 * (15u32.pow(i as u32)));
-                match char::from_u32(value) {
-                    Some(c) => buf.extend_from_slice(&digits),
-                    None => return Err(Error::InvalidUnicodeChar(value)),
-                }
-                ()
-            },
-            b'U' if unicode => {
-                let bytes: Vec<u8> = try!((0..8).map(|_| Ok(read!())).collect());
-                let digits: Vec<u8> = try!(bytes.into_iter().map(hex_to_digit).collect());
-                let value = digits.iter().enumerate().fold(0u32, |acc, (i, &v)| acc + v as u32 * (15u32.pow(i as u32)));
-                match char::from_u32(value) {
-                    Some(c) => buf.extend_from_slice(&digits),
-                    None => return Err(Error::InvalidUnicodeChar(value)),
-                }
-                ()
-            },
+            b'u' if unicode => unimplemented!(),
+            b'U' if unicode => unimplemented!(),
             _ => {
                 buf.push(b'\\');
                 buf.push(marker);
