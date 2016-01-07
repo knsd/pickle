@@ -7,3 +7,4 @@ authors = ["Fedor Gogolev <knsd@knsd.net>"]
 num = "0.1.29"
 byteorder = "0.4.2"
 quick-error = "0.2.0"
+from-ascii = "0.0.1"

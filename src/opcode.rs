@@ -1,11 +1,10 @@
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
-use std::str::{from_utf8, Utf8Error};
 use std::string::{FromUtf8Error};
-use std::num::{ParseFloatError};
 
 use num::{Zero};
 use num::bigint::{BigInt, ToBigInt, Sign};
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
+use from_ascii::{FromAscii, ParseIntError, ParseFloatError};
 
 use string::{unescape, Error as UnescapeError};
 
@@ -20,10 +19,11 @@ quick_error! {
         }
         UnknownOpcode(opcode: u8) {}
 
-        InvalidInt
+        InvalidInt {
+            from(ParseIntError)
+        }
         InvalidLong
         InvalidFloat {
-            from(Utf8Error)
             from(ParseFloatError)
         }
 
@@ -144,61 +144,12 @@ fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + B
     }
 }
 
-pub fn dec_to_digit(c: u8) -> Option<u8> {
-    let val = match c {
-        b'0' ... b'9' => c - b'0',
-        _ => return None,
-    };
-    Some(val)
-}
-
-fn from_bytes(src: &[u8]) -> Result<i64, Error> {
-    if src.is_empty() {
-        return Err(Error::InvalidInt);
-    }
-
-    let (is_positive, digits) = match src[0] {
-        b'+' => (true, &src[1..]),
-        b'-' => (false, &src[1..]),
-        _ => (true, src)
-    };
-
-    if digits.is_empty() {
-        return Err(Error::InvalidInt);
-    }
-
-    let mut result = 0;
-
-    if is_positive {
-        // The number is positive
-        for &c in digits {
-            let x = match dec_to_digit(c) {
-                Some(x) => x as i64,
-                None => return Err(Error::InvalidInt),
-            };
-            result = result * 10;
-            result = result + x;
-        }
-    } else {
-        // The number is negative
-        for &c in digits {
-            let x = match dec_to_digit(c) {
-                Some(x) => x as i64,
-                None => return Err(Error::InvalidInt),
-            };
-            result = result * 10;
-            result = result - x;
-        }
-    }
-    Ok(result)
-}
-
 fn read_decimal_int<R>(rd: &mut R) -> Result<BooleanOrInt, Error> where R: Read + BufRead {
     let s = try!(read_until_newline(rd));
     let val = match &s[..] {
         b"00" => BooleanOrInt::Boolean(false),
         b"01" => BooleanOrInt::Boolean(true),
-        _ => BooleanOrInt::Int(try!(from_bytes(&s)))
+        _ => BooleanOrInt::Int(try!(i64::from_ascii(&s)))
     };
     Ok(val)
 }
@@ -302,7 +253,7 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
 
         b'F' => {
             let s = try!(read_until_newline(rd));
-            OpCode::Float(try!(try!(from_utf8(&s)).parse()))
+            OpCode::Float(try!(f64::from_ascii(&s)))
         },
         b'G' => {
             OpCode::BinFloat(try!(rd.read_f64::<BigEndian>()))
