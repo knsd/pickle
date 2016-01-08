@@ -6,4 +6,6 @@ extern crate unicode_names;
 
 #[allow(dead_code)]
 pub mod opcode;
+#[allow(dead_code)]
+pub mod value;
 mod string;
