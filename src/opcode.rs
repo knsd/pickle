@@ -11,10 +11,10 @@ use string::{unescape, Error as UnescapeError};
 quick_error! {
     #[derive(Debug)]
     pub enum Error {
-        ReadError(err: ByteorderError) {
+        Read(err: ByteorderError) {
             from()
         }
-        IoError(err: IoError) {
+        Io(err: IoError) {
             from()
         }
         UnknownOpcode(opcode: u8) {}
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_proto() {
-        e!(b"\x80", Error::ReadError(_));
+        e!(b"\x80", Error::Read(_));
         e!(b"\x80\x00", Error::InvalidProto(0));
         e!(b"\x80\x01", Error::InvalidProto(1));
         t!(b"\x80\x02", OpCode::Proto(n), assert_eq!(n, 2));
@@ -394,20 +394,20 @@ mod tests {
 
     #[test]
     fn test_bin_int() {
-        e!(b"J\x0a", Error::ReadError(_));
+        e!(b"J\x0a", Error::Read(_));
         t!(b"J\x0a\x00\x00\x00", OpCode::BinInt(n), assert_eq!(n, 10));
         t!(b"J\x0a\x00\x00\x01", OpCode::BinInt(n), assert_eq!(n, 16777226));
     }
 
     #[test]
     fn test_bin_int1() {
-        e!(b"K", Error::ReadError(_));
+        e!(b"K", Error::Read(_));
         t!(b"K\x0a", OpCode::BinInt1(n), assert_eq!(n, 10));
     }
 
     #[test]
     fn test_bin_int2() {
-        e!(b"M\x0a", Error::ReadError(_));
+        e!(b"M\x0a", Error::Read(_));
         t!(b"M\x0a\x00\x00\x00", OpCode::BinInt2(n), assert_eq!(n, 10));
         t!(b"M\x0a\x01\x00\x00", OpCode::BinInt2(n), assert_eq!(n, 266));
     }
@@ -424,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_long1() {
-        e!(b"\x8a", Error::ReadError(_));
+        e!(b"\x8a", Error::Read(_));
         t!(b"\x8a\x01\x0a", OpCode::Long1(n), assert_eq!(n, n!(10)));
         t!(b"\x8a\x01\xf6", OpCode::Long1(n), assert_eq!(n, n!(-10)));
         t!(b"\x8a\x02.\xfb", OpCode::Long1(n), assert_eq!(n, n!(-1234)));
@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn test_long4() {
         e!(b"\x8b\xff\xff\xff\xff", Error::NegativeLength);
-        e!(b"\x8b\x0a", Error::ReadError(_));
+        e!(b"\x8b\x0a", Error::Read(_));
         t!(b"\x8b\x01\x00\x00\x00\x0a", OpCode::Long4(n), assert_eq!(n, n!(10)));
         t!(b"\x8b\x01\x00\x00\x00\xf6", OpCode::Long4(n), assert_eq!(n, n!(-10)));
         t!(b"\x8b\x02\x00\x00\x00.\xfb", OpCode::Long4(n), assert_eq!(n, n!(-1234)));
@@ -507,9 +507,9 @@ mod tests {
 
     #[test]
     fn test_bin_float() {
-        e!(b"G", Error::ReadError(_));
-        e!(b"Gabc", Error::ReadError(_));
-        e!(b"G123", Error::ReadError(_));
+        e!(b"G", Error::Read(_));
+        e!(b"Gabc", Error::Read(_));
+        e!(b"G123", Error::Read(_));
         t!(b"G@^\xc0\x00\x00\x00\x00\x00", OpCode::BinFloat(n), assert_eq!(n, 123.0));
         t!(b"G\xc0^\xc0\x00\x00\x00\x00\x00", OpCode::BinFloat(n), assert_eq!(n, -123.0));
         t!(b"G\xc0^\xdd/\x1a\x9f\xbew", OpCode::BinFloat(n), assert_eq!(n, -123.456));
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_bin_get() {
-        e!(b"h", Error::ReadError(_));
+        e!(b"h", Error::Read(_));
         t!(b"h\x00", OpCode::BinGet(n), assert_eq!(n, 0));
         t!(b"h\x0a", OpCode::BinGet(n), assert_eq!(n, 10));
         t!(b"h\xfe", OpCode::BinGet(n), assert_eq!(n, 254));
@@ -620,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_long_bin_get() {
-        e!(b"j\x0a", Error::ReadError(_));
+        e!(b"j\x0a", Error::Read(_));
         t!(b"j\x0a\x00\x00\x00", OpCode::LongBinGet(n), assert_eq!(n, 10));
         t!(b"j\x0a\x00\x00\x01", OpCode::LongBinGet(n), assert_eq!(n, 16777226));
     }
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_bin_put() {
-        e!(b"q", Error::ReadError(_));
+        e!(b"q", Error::Read(_));
         t!(b"q\x00", OpCode::BinPut(n), assert_eq!(n, 0));
         t!(b"q\x0a", OpCode::BinPut(n), assert_eq!(n, 10));
         t!(b"q\xfe", OpCode::BinPut(n), assert_eq!(n, 254));
@@ -644,29 +644,29 @@ mod tests {
 
     #[test]
     fn test_long_bin_put() {
-        e!(b"r\x0a", Error::ReadError(_));
+        e!(b"r\x0a", Error::Read(_));
         t!(b"r\x0a\x00\x00\x00", OpCode::LongBinPut(n), assert_eq!(n, 10));
         t!(b"r\x0a\x00\x00\x01", OpCode::LongBinPut(n), assert_eq!(n, 16777226));
     }
 
     #[test]
     fn test_ext1() {
-        e!(b"\x82", Error::ReadError(_));
+        e!(b"\x82", Error::Read(_));
         t!(b"\x82\x0a", OpCode::Ext1(n), assert_eq!(n, 10));
     }
 
     #[test]
     fn test_ext2() {
-        e!(b"\x83", Error::ReadError(_));
-        e!(b"\x83\x01", Error::ReadError(_));
+        e!(b"\x83", Error::Read(_));
+        e!(b"\x83\x01", Error::Read(_));
         t!(b"\x83\x0a\x00", OpCode::Ext2(n), assert_eq!(n, 10));
         t!(b"\x83\x0a\x01", OpCode::Ext2(n), assert_eq!(n, 266));
     }
 
     #[test]
     fn test_ext4() {
-        e!(b"\x84", Error::ReadError(_));
-        e!(b"\x84\x01\x01\x01", Error::ReadError(_));
+        e!(b"\x84", Error::Read(_));
+        e!(b"\x84\x01\x01\x01", Error::Read(_));
         t!(b"\x84\x0a\x00\x00\x00", OpCode::Ext4(n), assert_eq!(n, 10));
         t!(b"\x84\x0a\x01\x00\x01", OpCode::Ext4(n), assert_eq!(n, 16777482));
     }
