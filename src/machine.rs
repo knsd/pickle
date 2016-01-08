@@ -100,6 +100,33 @@ impl Machine {
                     }
                 }
             },
+
+            OpCode::EmptyTuple => self.stack.push(Value::Tuple(Vec::new())),
+            OpCode::Tuple => {
+                match self.marker {
+                    None => panic!("Empty marker"),
+                    Some(marker) => {
+                        let values = self.split_off(marker);
+                        self.stack.push(Value::Tuple(values));
+                    }
+                }
+            },
+            OpCode::Tuple1 => {
+                let v1 = self.pop();
+                self.stack.push(Value::Tuple(vec![v1]))
+            },
+            OpCode::Tuple2 => {
+                let v1 = self.pop();
+                let v2 = self.pop();
+                self.stack.push(Value::Tuple(vec![v1, v2]))
+            },
+            OpCode::Tuple3 => {
+                let v1 = self.pop();
+                let v2 = self.pop();
+                let v3 = self.pop();
+                self.stack.push(Value::Tuple(vec![v1, v2, v3]))
+            }
+
             _ => panic!("Not implemented")
         }
     }
