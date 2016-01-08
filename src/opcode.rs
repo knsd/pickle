@@ -242,7 +242,10 @@ pub fn read_opcode<R>(rd: &mut R) -> Result<OpCode, Error> where R: Read + BufRe
         b'\x88' => OpCode::NewTrue,
         b'\x89' => OpCode::NewFalse,
 
-        b'V' => unimplemented!(), // Unicode
+        b'V' => {
+            let buf = try!(unescape(&try!(read_until_newline(rd)), true));
+            OpCode::Unicode(try!(String::from_utf8(buf)))
+        },
         b'X' => {
             let length = try!(rd.read_i32::<LittleEndian>());
             ensure_not_negative!(length);
