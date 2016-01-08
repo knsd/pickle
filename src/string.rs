@@ -1,4 +1,6 @@
 use std::collections::{VecDeque};
+use std::char::{from_u32};
+
 use from_ascii::{FromAsciiRadix, ParseIntError};
 
 quick_error! {
@@ -91,7 +93,16 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
                 continue
             },
             b'u' if unicode => unimplemented!(),
-            b'U' if unicode => unimplemented!(),
+            b'U' if unicode => {
+                let mut s = String::new();
+                let hex_buf = [read!(), read!(), read!(), read!(), read!(), read!(), read!(), read!()];
+                let value = try!(u32::from_ascii_radix(&hex_buf, 16));
+                s.push(match from_u32(value) {
+                    Some(v) => v,
+                    None => return Err(Error::InvalidValue),
+                });
+                buf.extend_from_slice(s.as_bytes());
+            },
             _ => {
                 buf.push(b'\\');
                 buf.push(marker);
