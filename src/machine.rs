@@ -20,6 +20,13 @@ impl Machine {
         }
     }
 
+    fn split_off(&mut self, at: usize) -> Vec<Value> {
+        if at > self.stack.len() {
+            panic!("Stack too small");
+        }
+        self.stack.split_off(at)
+    }
+
     fn execute(&mut self, opcode: OpCode) {
         match opcode {
             OpCode::Proto(_) => (),
@@ -70,7 +77,7 @@ impl Machine {
                 match self.marker {
                     None => panic!("Empty marker"),
                     Some(marker) => {
-                        let values = self.stack.split_off(marker);
+                        let values = self.split_off(marker);
                         match self.stack.last_mut() {
                             None => panic!("Empty stack"),
                             Some(&mut Value::List(ref mut list)) => {
@@ -85,7 +92,7 @@ impl Machine {
                 match self.marker {
                     None => panic!("Empty marker"),
                     Some(marker) => {
-                        let values = self.stack.split_off(marker);
+                        let values = self.split_off(marker);
                         self.stack.push(Value::List(values));
                     }
                 }
