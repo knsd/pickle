@@ -92,7 +92,15 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
                 });
                 continue
             },
-            b'u' if unicode => unimplemented!(),
+            b'u' if unicode => {
+                let hex_buf = [read!(), read!(), read!(), read!()];
+                let value = try!(u16::from_ascii_radix(&hex_buf, 16));
+                let s = match String::from_utf16(&[value]) {
+                    Ok(s) => s,
+                    Err(_) => return Err(Error::InvalidValue),
+                };
+                buf.extend_from_slice(s.as_bytes());
+            },
             b'U' if unicode => {
                 let mut s = String::new();
                 let hex_buf = [read!(), read!(), read!(), read!(), read!(), read!(), read!(), read!()];
@@ -126,5 +134,6 @@ mod tests {
         assert_eq!(unescape(b"f\\5oo", false).unwrap(), b"f\x05oo");
         assert_eq!(unescape(b"f\\oo", false).unwrap(), b"f\\oo");
         assert_eq!(unescape(b"f\\coo", false).unwrap(), b"f\\coo");
+        assert_eq!(unescape(b"f\\U00002663oo", true).unwrap(), b"f\xe2\x99\xa3oo");
     }
 }
