@@ -127,6 +127,53 @@ impl Machine {
                 self.stack.push(Value::Tuple(vec![v1, v2, v3]))
             }
 
+            OpCode::EmptyDict => self.stack.push(Value::Dict(Vec::new())),
+            OpCode::Dict => {
+                match self.marker {
+                    None => panic!("Empty marker"),
+                    Some(marker) => {
+                        let mut values = self.split_off(marker);
+                        let mut dict = Vec::new();
+
+                        for i in 0 .. values.len() / 2 { // TODO: Check panic
+                            let key = values.remove(2 * i);
+                            let value = values.remove(2 * i + 1);
+                            dict.push((key, value));
+                        }
+                        self.stack.push(Value::Dict(dict));
+                    }
+                }
+            },
+            OpCode::SetItem => {
+                let value = self.pop();
+                let key = self.pop();
+                match self.stack.last_mut() {
+                    None => panic!("Empty stack"),
+                    Some(&mut Value::Dict(ref mut dict)) => dict.push((key, value)),
+                    _ => panic!("Invalid value on stack"),
+                }
+            },
+            OpCode::SetItems => {
+                match self.marker {
+                    None => panic!("Empty marker"),
+                    Some(marker) => {
+                        let mut values = self.split_off(marker);
+
+                        match self.stack.last_mut() {
+                            None => panic!("Empty stack"),
+                            Some(&mut Value::Dict(ref mut dict)) => {
+                                for i in 0 .. values.len() / 2 { // TODO: Check panic
+                                    let key = values.remove(2 * i);
+                                    let value = values.remove(2 * i + 1);
+                                    dict.push((key, value));
+                                }
+                            },
+                            _ => panic!("Invalid value on stack"),
+                        }
+                    }
+                }
+            },
+
             _ => panic!("Not implemented")
         }
     }
