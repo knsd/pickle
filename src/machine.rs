@@ -27,6 +27,13 @@ impl Machine {
         self.stack.split_off(at)
     }
 
+    fn pop(&mut self) -> Value {
+        match self.stack.pop() {
+            None => panic!("Empty stack"),
+            Some(value) => value,
+        }
+    }
+
     fn execute(&mut self, opcode: OpCode) {
         match opcode {
             OpCode::Proto(_) => (),
@@ -62,15 +69,11 @@ impl Machine {
 
             OpCode::EmptyList => self.stack.push(Value::List(Vec::new())),
             OpCode::Append => {
-                match self.stack.pop() {
+                let v = self.pop();
+                match self.stack.last_mut() {
                     None => panic!("Empty stack"),
-                    Some(v) => {
-                        match self.stack.last_mut() {
-                            None => panic!("Empty stack"),
-                            Some(&mut Value::List(ref mut list)) => list.push(v),
-                            _ => panic!("Invalid value on stack"),
-                        }
-                    }
+                    Some(&mut Value::List(ref mut list)) => list.push(v),
+                    _ => panic!("Invalid value on stack"),
                 }
             },
             OpCode::Appends => {
