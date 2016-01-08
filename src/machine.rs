@@ -174,6 +174,28 @@ impl Machine {
                 }
             },
 
+            OpCode::Pop => {
+                self.pop();
+            },
+            OpCode::Dup => {
+                let value = match self.stack.last() {
+                    None => panic!("Empty stack"),
+                    Some(ref v) => (*v).clone(),
+                };
+                self.stack.push(value)
+            },
+            OpCode::Mark => {
+                self.marker = Some(self.stack.len())
+            },
+            OpCode::PopMark => {
+                match self.marker {
+                    None => panic!("Empty marker"),
+                    Some(marker) => {
+                        self.split_off(marker);
+                    }
+                }
+            },
+
             _ => panic!("Not implemented")
         }
     }
