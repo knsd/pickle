@@ -160,5 +160,7 @@ mod tests {
         assert_eq!(unescape(b"f\\oo", false).unwrap(), b"f\\oo");
         assert_eq!(unescape(b"f\\coo", false).unwrap(), b"f\\coo");
         assert_eq!(unescape(b"f\\U00002663oo", true).unwrap(), b"f\xe2\x99\xa3oo");
+        assert_eq!(unescape(b"f\\u2663oo", true).unwrap(), b"f\xe2\x99\xa3oo");
+        assert_eq!(unescape(b"f\\N{SNOWMAN}oo", true).unwrap(), b"f\xe2\x98\x83oo");
     }
 }
