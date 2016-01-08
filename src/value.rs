@@ -1,6 +1,6 @@
 use num::bigint::{BigInt};
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Value {
     None,
     Bool(bool),
