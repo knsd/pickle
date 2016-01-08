@@ -8,6 +8,7 @@ use value::{Value};
 pub struct Machine {
     stack: Vec<Value>,
     memo: HashMap<usize, Value>,
+    marker: Option<usize>,
 }
 
 impl Machine {
@@ -15,6 +16,7 @@ impl Machine {
         Machine {
             stack: Vec::new(),
             memo: HashMap::new(),
+            marker: None,
         }
     }
 
@@ -50,6 +52,44 @@ impl Machine {
 
             OpCode::Float(i) => self.stack.push(Value::Float(i)),
             OpCode::BinFloat(i) => self.stack.push(Value::Float(i)),
+
+            OpCode::EmptyList => self.stack.push(Value::List(Vec::new())),
+            OpCode::Append => {
+                match self.stack.pop() {
+                    None => panic!("Empty stack"),
+                    Some(v) => {
+                        match self.stack.last_mut() {
+                            None => panic!("Empty stack"),
+                            Some(&mut Value::List(ref mut list)) => list.push(v),
+                            _ => panic!("Invalid value on stack"),
+                        }
+                    }
+                }
+            },
+            OpCode::Appends => {
+                match self.marker {
+                    None => panic!("Empty marker"),
+                    Some(marker) => {
+                        let values = self.stack.split_off(marker);
+                        match self.stack.last_mut() {
+                            None => panic!("Empty stack"),
+                            Some(&mut Value::List(ref mut list)) => {
+                                list.extend(values);
+                            },
+                            _ => panic!("Invalid value on stack"),
+                        }
+                    }
+                }
+            },
+            OpCode::List => {
+                match self.marker {
+                    None => panic!("Empty marker"),
+                    Some(marker) => {
+                        let values = self.stack.split_off(marker);
+                        self.stack.push(Value::List(values));
+                    }
+                }
+            },
             _ => panic!("Not implemented")
         }
     }
