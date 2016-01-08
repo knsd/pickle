@@ -482,6 +482,10 @@ mod tests {
 
     #[test]
     fn test_unicode() {
+        e!(b"V", Error::InvalidString);
+        t!(b"V\n", OpCode::Unicode(s), assert_eq!(s, ""));
+        t!(b"V\\n\n", OpCode::Unicode(s), assert_eq!(s, "\n"));
+        t!(b"Vabc\\u0442\\u0435\\u0441\\u0442def\n", OpCode::Unicode(s), assert_eq!(s, "abcтестdef"));
     }
 
     #[test]
