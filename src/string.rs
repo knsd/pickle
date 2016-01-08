@@ -38,6 +38,14 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
         })
     }
 
+    macro_rules! push_char {
+        ($c: ident) => ({
+            let mut s = String::new();
+            s.push($c);
+            buf.extend_from_slice(s.as_bytes());
+        })
+    }
+
     loop {
         if i >= s.len() {
             return Ok(buf)
@@ -103,14 +111,12 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
                 buf.extend_from_slice(s.as_bytes());
             },
             b'U' if unicode => {
-                let mut s = String::new();
                 let hex_buf = [read!(), read!(), read!(), read!(), read!(), read!(), read!(), read!()];
                 let value = try!(u32::from_ascii_radix(&hex_buf, 16));
-                s.push(match from_u32(value) {
-                    Some(v) => v,
+                match from_u32(value) {
+                    Some(character) => push_char!(character),
                     None => return Err(Error::InvalidValue),
-                });
-                buf.extend_from_slice(s.as_bytes());
+                };
             },
             b'N' if unicode => {
                 if read!() != b'{' {
@@ -128,11 +134,7 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
                 }
                 match character(&char_name) {
                     None => return Err(Error::InvalidValue),
-                    Some(character) => {
-                        let mut s = String::new();
-                        s.push(character);
-                        buf.extend_from_slice(s.as_bytes());
-                    }
+                    Some(character) => push_char!(character),
                 }
 
             },
