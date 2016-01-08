@@ -40,6 +40,22 @@ impl Machine {
         }
     }
 
+    fn handle_get(&mut self, i: usize) {
+        let value = match self.memo.get(&i) {
+            None => panic!("Empty memo"),
+            Some(ref v) => (*v).clone(),
+        };
+        self.stack.push(value);
+    }
+
+    fn handle_put(&mut self, i: usize) {
+        let value = match self.stack.last() {
+            None => panic!("Empty stack"),
+            Some(ref v) => (*v).clone(),
+        };
+        self.memo.insert(i, value);
+    }
+
     fn execute(&mut self, opcode: OpCode) {
         match opcode {
             OpCode::Proto(_) => (),
@@ -171,6 +187,13 @@ impl Machine {
             OpCode::PopMark => {
                 self.split_off();
             },
+
+            OpCode::Get(i) => self.handle_get(i),
+            OpCode::BinGet(i) => self.handle_get(i),
+            OpCode::LongBinGet(i) => self.handle_get(i),
+            OpCode::Put(i) => self.handle_put(i),
+            OpCode::BinPut(i) => self.handle_put(i),
+            OpCode::LongBinPut(i) => self.handle_put(i),
 
             _ => panic!("Not implemented")
         }
