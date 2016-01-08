@@ -20,10 +20,16 @@ impl Machine {
         }
     }
 
-    fn split_off(&mut self, at: usize) -> Vec<Value> {
+    fn split_off(&mut self) -> Vec<Value> {
+        let at = match self.marker {
+            None => panic!("Empty marker"),
+            Some(marker) => marker,
+        };
+
         if at > self.stack.len() {
             panic!("Stack too small");
         }
+
         self.stack.split_off(at)
     }
 
@@ -77,39 +83,24 @@ impl Machine {
                 }
             },
             OpCode::Appends => {
-                match self.marker {
-                    None => panic!("Empty marker"),
-                    Some(marker) => {
-                        let values = self.split_off(marker);
-                        match self.stack.last_mut() {
-                            None => panic!("Empty stack"),
-                            Some(&mut Value::List(ref mut list)) => {
-                                list.extend(values);
-                            },
-                            _ => panic!("Invalid value on stack"),
-                        }
-                    }
+                let values = self.split_off();
+                match self.stack.last_mut() {
+                    None => panic!("Empty stack"),
+                    Some(&mut Value::List(ref mut list)) => {
+                        list.extend(values);
+                    },
+                    _ => panic!("Invalid value on stack"),
                 }
             },
             OpCode::List => {
-                match self.marker {
-                    None => panic!("Empty marker"),
-                    Some(marker) => {
-                        let values = self.split_off(marker);
-                        self.stack.push(Value::List(values));
-                    }
-                }
+                let values = self.split_off();
+                self.stack.push(Value::List(values));
             },
 
             OpCode::EmptyTuple => self.stack.push(Value::Tuple(Vec::new())),
             OpCode::Tuple => {
-                match self.marker {
-                    None => panic!("Empty marker"),
-                    Some(marker) => {
-                        let values = self.split_off(marker);
-                        self.stack.push(Value::Tuple(values));
-                    }
-                }
+                let values = self.split_off();
+                self.stack.push(Value::Tuple(values));
             },
             OpCode::Tuple1 => {
                 let v1 = self.pop();
@@ -129,20 +120,15 @@ impl Machine {
 
             OpCode::EmptyDict => self.stack.push(Value::Dict(Vec::new())),
             OpCode::Dict => {
-                match self.marker {
-                    None => panic!("Empty marker"),
-                    Some(marker) => {
-                        let mut values = self.split_off(marker);
-                        let mut dict = Vec::new();
+                let mut values = self.split_off();
+                let mut dict = Vec::new();
 
-                        for i in 0 .. values.len() / 2 { // TODO: Check panic
-                            let key = values.remove(2 * i);
-                            let value = values.remove(2 * i + 1);
-                            dict.push((key, value));
-                        }
-                        self.stack.push(Value::Dict(dict));
-                    }
+                for i in 0 .. values.len() / 2 { // TODO: Check panic
+                    let key = values.remove(2 * i);
+                    let value = values.remove(2 * i + 1);
+                    dict.push((key, value));
                 }
+                self.stack.push(Value::Dict(dict));
             },
             OpCode::SetItem => {
                 let value = self.pop();
@@ -154,23 +140,18 @@ impl Machine {
                 }
             },
             OpCode::SetItems => {
-                match self.marker {
-                    None => panic!("Empty marker"),
-                    Some(marker) => {
-                        let mut values = self.split_off(marker);
+                let mut values = self.split_off();
 
-                        match self.stack.last_mut() {
-                            None => panic!("Empty stack"),
-                            Some(&mut Value::Dict(ref mut dict)) => {
-                                for i in 0 .. values.len() / 2 { // TODO: Check panic
-                                    let key = values.remove(2 * i);
-                                    let value = values.remove(2 * i + 1);
-                                    dict.push((key, value));
-                                }
-                            },
-                            _ => panic!("Invalid value on stack"),
+                match self.stack.last_mut() {
+                    None => panic!("Empty stack"),
+                    Some(&mut Value::Dict(ref mut dict)) => {
+                        for i in 0 .. values.len() / 2 { // TODO: Check panic
+                            let key = values.remove(2 * i);
+                            let value = values.remove(2 * i + 1);
+                            dict.push((key, value));
                         }
-                    }
+                    },
+                    _ => panic!("Invalid value on stack"),
                 }
             },
 
@@ -188,12 +169,7 @@ impl Machine {
                 self.marker = Some(self.stack.len())
             },
             OpCode::PopMark => {
-                match self.marker {
-                    None => panic!("Empty marker"),
-                    Some(marker) => {
-                        self.split_off(marker);
-                    }
-                }
+                self.split_off();
             },
 
             _ => panic!("Not implemented")
