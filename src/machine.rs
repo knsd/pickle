@@ -70,10 +70,10 @@ impl Machine {
         Ok(())
     }
 
-    pub fn execute(&mut self, opcode: OpCode) -> Result<(), Error> {
+    pub fn execute(&mut self, opcode: OpCode) -> Result<bool, Error> {
         match opcode {
             OpCode::Proto(_) => (),
-            OpCode::Stop => (),  // TODO: !!!
+            OpCode::Stop => return Ok(true),
 
             OpCode::Int(value) => {
                 self.stack.push(match value {
@@ -211,6 +211,6 @@ impl Machine {
 
             _ => return Err(Error::NotImplemented)
         }
-        Ok(())
+        Ok(false)
     }
 }
