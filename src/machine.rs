@@ -24,7 +24,7 @@ pub struct Machine {
 }
 
 impl Machine {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Machine {
             stack: Vec::new(),
             memo: HashMap::new(),
