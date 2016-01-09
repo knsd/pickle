@@ -26,7 +26,7 @@ quick_error! {
     }
 }
 
-pub fn unpickle<R>(rd: &mut R) -> Result<(), Error> where R: Read + BufRead {
+pub fn unpickle<R>(rd: &mut R) -> Result<value::Value, Error> where R: Read + BufRead {
     let mut machine = machine::Machine::new();
     loop {
         let opcode = try!(opcode::read_opcode(rd));
@@ -34,5 +34,5 @@ pub fn unpickle<R>(rd: &mut R) -> Result<(), Error> where R: Read + BufRead {
             break
         }
     }
-    Ok(())
+    Ok(try!(machine.pop()))
 }
