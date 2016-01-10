@@ -181,7 +181,7 @@ impl Machine {
         Ok(())
     }
 
-    fn execute<R>(&mut self, rd: &mut R) -> Result<bool, Error> where R: Read + BufRead {
+    pub fn execute<R>(&mut self, rd: &mut R) -> Result<bool, Error> where R: Read + BufRead {
         macro_rules! ensure_not_negative {
             ($n: expr) => ({
                 if $n < Zero::zero() {
@@ -198,7 +198,7 @@ impl Machine {
                     return Err(Error::InvalidProto(version))
                 }
             },
-            STOP => (),
+            STOP => return Ok(true),
 
             INT => {
                 self.stack.push(match try!(read_decimal_int(rd)) {
