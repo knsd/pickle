@@ -94,7 +94,6 @@ pub enum OpCode {
     Mark,
     PopMark,
 
-    // TODO: why usize
     Get(usize),
     BinGet(usize),
     LongBinGet(usize),

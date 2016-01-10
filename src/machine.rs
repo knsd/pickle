@@ -1,9 +1,16 @@
 use std::collections::{HashMap};
+use std::io::{Read, BufRead, Error as IoError, ErrorKind};
+use std::string::{FromUtf8Error};
 
-use num::bigint::{BigInt};
+use num::{Zero};
+use num::bigint::{BigInt, ToBigInt, Sign};
+use byteorder::{ReadBytesExt, LittleEndian, BigEndian, Error as ByteorderError};
+use from_ascii::{FromAscii, ParseIntError, ParseFloatError};
 
-use opcode::{OpCode, BooleanOrInt};
+use string::{unescape, Error as UnescapeError};
 use value::{Value};
+
+use opcodes::*;
 
 quick_error! {
     #[derive(Debug)]
@@ -14,8 +21,112 @@ quick_error! {
         InvalidValueOnStack
         InvalidMemoValue
         NotImplemented
+
+        Read(err: ByteorderError) {
+            from()
+        }
+        Io(err: IoError) {
+            from()
+        }
+        UnknownOpcode(opcode: u8) {}
+
+        InvalidInt {
+            from(ParseIntError)
+        }
+        InvalidLong
+        InvalidFloat {
+            from(ParseFloatError)
+        }
+
+        InvalidString {
+            from(FromUtf8Error)
+        }
+        UnescapeError(err: UnescapeError) {
+            from()
+        }
+
+        InvalidProto(proto: u8)
+        NegativeLength
     }
 }
+
+#[derive(Debug, PartialEq)]
+pub enum BooleanOrInt {
+    Boolean(bool),
+    Int(i64),
+}
+
+fn read_exact<R>(rd: &mut R, mut buf: &mut [u8]) -> Result<(), IoError> where R: Read {
+    while !buf.is_empty() {
+        match rd.read(buf) {
+            Ok(0) => break,
+            Ok(n) => { let tmp = buf; buf = &mut tmp[n..]; }
+            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+    if !buf.is_empty() {
+        Err(IoError::new(ErrorKind::Other,
+                       "failed to fill whole buffer"))
+    } else {
+        Ok(())
+    }
+}
+
+fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
+    let mut buf = Vec::new();
+    try!(rd.read_until('\n' as u8, &mut buf));
+
+    // Skip last symbol — \n
+    match buf.split_last() {
+        Some((&b'\n', init)) => Ok(init.to_vec()),
+        _ => return Err(Error::InvalidString),
+    }
+}
+
+fn read_decimal_int<R>(rd: &mut R) -> Result<BooleanOrInt, Error> where R: Read + BufRead {
+    let s = try!(read_until_newline(rd));
+    let val = match &s[..] {
+        b"00" => BooleanOrInt::Boolean(false),
+        b"01" => BooleanOrInt::Boolean(true),
+        _ => BooleanOrInt::Int(try!(i64::from_ascii(&s)))
+    };
+    Ok(val)
+}
+
+fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + BufRead {
+    let s = try!(read_until_newline(rd));
+    let init = match s.split_last() {
+        None => return Err(Error::InvalidString),
+        Some((&b'L', init)) => init,
+        Some(_) => &s[..],
+    };
+
+    match BigInt::parse_bytes(&init, 10) {
+        Some(i) => Ok(i),
+        None => Err(Error::InvalidLong)
+    }
+}
+
+
+fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
+    let mut buf = vec![0; length];
+    try!(read_exact(rd, buf.as_mut()));
+
+    let mut n = BigInt::from_bytes_le(Sign::Plus, &buf);
+
+    let last = match buf.last_mut() {
+        None => return Err(Error::InvalidLong),
+        Some(last) => last,
+    };
+
+    if *last > 127 {
+        n = n - (1.to_bigint().unwrap() << (length * 8))
+    }
+
+    Ok(n)
+}
+
 
 pub struct Machine {
     stack: Vec<Value>,
@@ -70,41 +181,88 @@ impl Machine {
         Ok(())
     }
 
-    pub fn execute(&mut self, opcode: OpCode) -> Result<bool, Error> {
-        match opcode {
-            OpCode::Proto(_) => (),
-            OpCode::Stop => return Ok(true),
+    fn execute<R>(&mut self, rd: &mut R) -> Result<bool, Error> where R: Read + BufRead {
+        macro_rules! ensure_not_negative {
+            ($n: expr) => ({
+                if $n < Zero::zero() {
+                    return Err(Error::NegativeLength)
+                }
+            })
+        }
 
-            OpCode::Int(value) => {
-                self.stack.push(match value {
+        let marker = try!(rd.read_u8());
+        match marker {
+            PROTO => {
+                let version = try!(rd.read_u8());
+                if version < 2 {
+                    return Err(Error::InvalidProto(version))
+                }
+            },
+            STOP => (),
+
+            INT => {
+                self.stack.push(match try!(read_decimal_int(rd)) {
                     BooleanOrInt::Boolean(v) => Value::Bool(v),
                     BooleanOrInt::Int(v) => Value::Int(BigInt::from(v)),
                 })
             },
-            OpCode::BinInt(i) => self.stack.push(Value::Int(BigInt::from(i))),
-            OpCode::BinInt1(i) => self.stack.push(Value::Int(BigInt::from(i))),
-            OpCode::BinInt2(i) => self.stack.push(Value::Int(BigInt::from(i))),
-            OpCode::Long(i) => self.stack.push(Value::Int(BigInt::from(i))),
-            OpCode::Long1(i) => self.stack.push(Value::Int(BigInt::from(i))),
-            OpCode::Long4(i) => self.stack.push(Value::Int(BigInt::from(i))),
+            BININT => self.stack.push(Value::Int(BigInt::from(try!(rd.read_i32::<LittleEndian>())))),
+            BININT1 => self.stack.push(Value::Int(BigInt::from(try!(rd.read_u8())))),
+            BININT2 => self.stack.push(Value::Int(BigInt::from(try!(rd.read_u16::<LittleEndian>())))),
+            LONG => self.stack.push(Value::Int(BigInt::from(try!(read_decimal_long(rd))))),
+            LONG1 => {
+                let length = try!(rd.read_u8());
+                self.stack.push(Value::Int(BigInt::from(try!(read_long(rd, length as usize)))))
+            }
+            LONG4 => {
+                let length = try!(rd.read_i32::<LittleEndian>());
+                self.stack.push(Value::Int(BigInt::from(try!(read_long(rd, length as usize)))))
+            }
 
-            OpCode::String(s) => self.stack.push(Value::String(s)),
-            OpCode::BinString(s) => self.stack.push(Value::String(s)),
-            OpCode::ShortBinString(s) => self.stack.push(Value::String(s)),
+            STRING => self.stack.push(Value::String(try!(unescape(&try!(read_until_newline(rd)), false)))),
+            BINSTRING => {
+                let length = try!(rd.read_i32::<LittleEndian>());
+                ensure_not_negative!(length);
 
-            OpCode::None => self.stack.push(Value::None),
+                let mut buf = vec![0; length as usize];
+                try!(read_exact(rd, &mut buf));
+                self.stack.push(Value::String(buf))
+            },
+            SHORT_BINSTRING => {
+                let length = try!(rd.read_u8());
+                let mut buf = vec![0; length as usize];
+                try!(read_exact(rd, &mut buf));
+                self.stack.push(Value::String(buf))
+            },
 
-            OpCode::NewTrue => self.stack.push(Value::Bool(true)),
-            OpCode::NewFalse => self.stack.push(Value::Bool(false)),
+            NONE => self.stack.push(Value::None),
+            NEWTRUE => self.stack.push(Value::Bool(true)),
+            NEWFALSE => self.stack.push(Value::Bool(false)),
 
-            OpCode::Unicode(s) => self.stack.push(Value::Unicode(s)),
-            OpCode::BinUnicode(s) => self.stack.push(Value::Unicode(s)),
+            UNICODE => {
+                let buf = try!(unescape(&try!(read_until_newline(rd)), true));
+                self.stack.push(Value::Unicode(try!(String::from_utf8(buf))))
+            },
+            BINUNICODE => {
+                let length = try!(rd.read_i32::<LittleEndian>());
+                ensure_not_negative!(length);
+                let mut buf = vec![0; length as usize];
+                try!(read_exact(rd, buf.as_mut()));
+                self.stack.push(Value::Unicode(try!(String::from_utf8(buf))))
+            },
 
-            OpCode::Float(i) => self.stack.push(Value::Float(i)),
-            OpCode::BinFloat(i) => self.stack.push(Value::Float(i)),
+            FLOAT => {
+                let s = try!(read_until_newline(rd));
+                self.stack.push(Value::Float(try!(f64::from_ascii(&s))))
+            },
+            BINFLOAT => {
+                self.stack.push(Value::Float(try!(rd.read_f64::<BigEndian>())))
+            },
 
-            OpCode::EmptyList => self.stack.push(Value::List(Vec::new())),
-            OpCode::Append => {
+            EMPTY_LIST => {
+                self.stack.push(Value::List(Vec::new()))
+            },
+            APPEND => {
                 let v = try!(self.pop());
                 match self.stack.last_mut() {
                     None => return Err(Error::EmptyStack),
@@ -112,7 +270,7 @@ impl Machine {
                     _ => return Err(Error::InvalidValueOnStack),
                 }
             },
-            OpCode::Appends => {
+            APPENDS => {
                 let values = try!(self.split_off());
                 match self.stack.last_mut() {
                     None => return Err(Error::EmptyStack),
@@ -122,34 +280,34 @@ impl Machine {
                     _ => return Err(Error::InvalidValueOnStack),
                 }
             },
-            OpCode::List => {
+            LIST => {
                 let values = try!(self.split_off());
                 self.stack.push(Value::List(values));
             },
 
-            OpCode::EmptyTuple => self.stack.push(Value::Tuple(Vec::new())),
-            OpCode::Tuple => {
+            EMPTY_TUPLE => self.stack.push(Value::Tuple(Vec::new())),
+            TUPLE => {
                 let values = try!(self.split_off());
                 self.stack.push(Value::Tuple(values));
             },
-            OpCode::Tuple1 => {
+            TUPLE1 => {
                 let v1 = try!(self.pop());
                 self.stack.push(Value::Tuple(vec![v1]))
             },
-            OpCode::Tuple2 => {
+            TUPLE2 => {
                 let v1 = try!(self.pop());
                 let v2 = try!(self.pop());
                 self.stack.push(Value::Tuple(vec![v1, v2]))
             },
-            OpCode::Tuple3 => {
+            TUPLE3 => {
                 let v1 = try!(self.pop());
                 let v2 = try!(self.pop());
                 let v3 = try!(self.pop());
                 self.stack.push(Value::Tuple(vec![v1, v2, v3]))
             }
 
-            OpCode::EmptyDict => self.stack.push(Value::Dict(Vec::new())),
-            OpCode::Dict => {
+            EMPTY_DICT => self.stack.push(Value::Dict(Vec::new())),
+            DICT => {
                 let mut values = try!(self.split_off());
                 let mut dict = Vec::new();
 
@@ -160,7 +318,7 @@ impl Machine {
                 }
                 self.stack.push(Value::Dict(dict));
             },
-            OpCode::SetItem => {
+            SETITEM => {
                 let value = try!(self.pop());
                 let key = try!(self.pop());
                 match self.stack.last_mut() {
@@ -169,7 +327,7 @@ impl Machine {
                     _ => return Err(Error::InvalidValueOnStack),
                 }
             },
-            OpCode::SetItems => {
+            SETITEMS => {
                 let mut values = try!(self.split_off());
 
                 match self.stack.last_mut() {
@@ -185,31 +343,60 @@ impl Machine {
                 }
             },
 
-            OpCode::Pop => {
+            POP => {
                 try!(self.pop());
             },
-            OpCode::Dup => {
+            DUP => {
                 let value = match self.stack.last() {
                     None => return Err(Error::EmptyStack),
                     Some(ref v) => (*v).clone(),
                 };
                 self.stack.push(value)
             },
-            OpCode::Mark => {
+            MARK => {
                 self.marker = Some(self.stack.len())
             },
-            OpCode::PopMark => {
+            POP_MARK => {
                 try!(self.split_off());
             },
 
-            OpCode::Get(i) => try!(self.handle_get(i)),
-            OpCode::BinGet(i) => try!(self.handle_get(i)),
-            OpCode::LongBinGet(i) => try!(self.handle_get(i)),
-            OpCode::Put(i) => try!(self.handle_put(i)),
-            OpCode::BinPut(i) => try!(self.handle_put(i)),
-            OpCode::LongBinPut(i) => try!(self.handle_put(i)),
+            GET => {
+                let n = match try!(read_decimal_int(rd)) {
+                    BooleanOrInt::Int(n) => n,
+                    BooleanOrInt::Boolean(false) => 0,
+                    BooleanOrInt::Boolean(true) => 1,
+                };
+                ensure_not_negative!(n);
+                try!(self.handle_get(n as usize))
+            }
+            BINGET => {
+                try!(self.handle_get(try!(rd.read_u8()) as usize))
+            }
+            LONG_BINGET => {
+                let n = try!(rd.read_i32::<LittleEndian>());
+                ensure_not_negative!(n);
+                try!(self.handle_get(n as usize))
+            }
 
-            _ => return Err(Error::NotImplemented)
+            PUT => {
+                let n = match try!(read_decimal_int(rd)) {
+                    BooleanOrInt::Int(n) => n,
+                    BooleanOrInt::Boolean(false) => 0,
+                    BooleanOrInt::Boolean(true) => 1,
+                };
+                ensure_not_negative!(n);
+                try!(self.handle_put(n as usize))
+            }
+            BINPUT => {
+                try!(self.handle_put(try!(rd.read_u8()) as usize))
+            }
+            LONG_BINPUT => {
+                let n = try!(rd.read_i32::<LittleEndian>());
+                ensure_not_negative!(n);
+                try!(self.handle_put(n as usize))
+            }
+
+            c => return Err(Error::UnknownOpcode(c)),
         }
         Ok(false)
     }
