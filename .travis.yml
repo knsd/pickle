@@ -33,6 +33,7 @@ after_success:
   # upload the documentation from the build with stable (automatically only actually
   # runs on the master branch, not individual PRs)
   - travis-cargo --only beta doc-upload
+  - travis-cargo coveralls --no-sudo --verify
 
 env:
   global:
