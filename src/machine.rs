@@ -1,4 +1,3 @@
-use std::collections::{HashMap};
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::string::{FromUtf8Error};
 
@@ -54,6 +53,39 @@ quick_error! {
 pub enum BooleanOrInt {
     Boolean(bool),
     Int(i64),
+}
+
+struct Memo {
+    small_map: Vec<Option<Value>>,
+}
+
+impl Memo {
+    fn new() -> Self {
+        Memo {
+            small_map: (0..100).map(|_| None).collect(),
+        }
+    }
+
+    #[inline]
+    fn insert(&mut self, key: usize, value: Value) {
+        let len = self.small_map.len();
+        if len <= key {
+            self.small_map.extend((0..key - len + 1).map(|_| None));
+        }
+        self.small_map[key] = Some(value)
+    }
+
+    #[inline]
+    pub fn get(&self, key: usize) -> Option<&Value> {
+        if key < self.small_map.len() {
+            match self.small_map[key] {
+              Some(ref value) => Some(value),
+              None => None
+            }
+        } else {
+            None
+        }
+    }
 }
 
 fn read_exact<R>(rd: &mut R, mut buf: &mut [u8]) -> Result<(), IoError> where R: Read {
@@ -127,10 +159,9 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
     Ok(n)
 }
 
-
 pub struct Machine {
     stack: Vec<Value>,
-    memo: HashMap<usize, Value>,
+    memo: Memo,
     marker: Option<usize>,
 }
 
@@ -138,7 +169,7 @@ impl Machine {
     pub fn new() -> Self {
         Machine {
             stack: Vec::new(),
-            memo: HashMap::new(),
+            memo: Memo::new(),
             marker: None,
         }
     }
@@ -164,7 +195,7 @@ impl Machine {
     }
 
     fn handle_get(&mut self, i: usize) -> Result<(), Error> {
-        let value = match self.memo.get(&i) {
+        let value = match self.memo.get(i) {
             None => return Err(Error::InvalidMemoValue),
             Some(ref v) => (*v).clone(),
         };
