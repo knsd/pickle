@@ -234,20 +234,20 @@ impl Machine {
             INT => {
                 self.stack.push(match try!(read_decimal_int(rd)) {
                     BooleanOrInt::Boolean(v) => Value::Bool(v),
-                    BooleanOrInt::Int(v) => Value::Int(BigInt::from(v)),
+                    BooleanOrInt::Int(v) => Value::Long(BigInt::from(v)),
                 })
             },
-            BININT => self.stack.push(Value::SmallInt(try!(rd.read_i32::<LittleEndian>()) as usize)),
-            BININT1 => self.stack.push(Value::SmallInt(try!(rd.read_u8()) as usize)),
-            BININT2 => self.stack.push(Value::SmallInt(try!(rd.read_u16::<LittleEndian>()) as usize)),
-            LONG => self.stack.push(Value::Int(BigInt::from(try!(read_decimal_long(rd))))),
+            BININT => self.stack.push(Value::Int(try!(rd.read_i32::<LittleEndian>()) as usize)),
+            BININT1 => self.stack.push(Value::Int(try!(rd.read_u8()) as usize)),
+            BININT2 => self.stack.push(Value::Int(try!(rd.read_u16::<LittleEndian>()) as usize)),
+            LONG => self.stack.push(Value::Long(BigInt::from(try!(read_decimal_long(rd))))),
             LONG1 => {
                 let length = try!(rd.read_u8());
-                self.stack.push(Value::Int(BigInt::from(try!(read_long(rd, length as usize)))))
+                self.stack.push(Value::Long(BigInt::from(try!(read_long(rd, length as usize)))))
             }
             LONG4 => {
                 let length = try!(rd.read_i32::<LittleEndian>());
-                self.stack.push(Value::Int(BigInt::from(try!(read_long(rd, length as usize)))))
+                self.stack.push(Value::Long(BigInt::from(try!(read_long(rd, length as usize)))))
             }
 
             STRING => self.stack.push(Value::String(try!(unescape(&try!(read_until_newline(rd)), false)))),

@@ -4,8 +4,8 @@ use num::bigint::{BigInt};
 pub enum Value {
     None,
     Bool(bool),
-    SmallInt(usize),
-    Int(BigInt),
+    Int(usize),
+    Long(BigInt),
     Float(f64),
     String(Vec<u8>),
     Unicode(String),
