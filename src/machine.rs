@@ -237,9 +237,9 @@ impl Machine {
                     BooleanOrInt::Int(v) => Value::Int(BigInt::from(v)),
                 })
             },
-            BININT => self.stack.push(Value::Int(BigInt::from(try!(rd.read_i32::<LittleEndian>())))),
-            BININT1 => self.stack.push(Value::Int(BigInt::from(try!(rd.read_u8())))),
-            BININT2 => self.stack.push(Value::Int(BigInt::from(try!(rd.read_u16::<LittleEndian>())))),
+            BININT => self.stack.push(Value::SmallInt(try!(rd.read_i32::<LittleEndian>()) as usize)),
+            BININT1 => self.stack.push(Value::SmallInt(try!(rd.read_u8()) as usize)),
+            BININT2 => self.stack.push(Value::SmallInt(try!(rd.read_u16::<LittleEndian>()) as usize)),
             LONG => self.stack.push(Value::Int(BigInt::from(try!(read_decimal_long(rd))))),
             LONG1 => {
                 let length = try!(rd.read_u8());
