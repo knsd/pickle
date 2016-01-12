@@ -18,7 +18,8 @@ quick_error! {
         StackTooSmall
         EmptyStack
         InvalidValueOnStack
-        InvalidMemoValue
+        InvalidGetValue
+        InvalidPutValue
         NotImplemented
 
         Read(err: ByteorderError) {
@@ -56,35 +57,29 @@ pub enum BooleanOrInt {
 }
 
 struct Memo {
-    small_map: Vec<Option<Value>>,
+    small_map: Vec<Value>,
 }
 
 impl Memo {
     fn new() -> Self {
         Memo {
-            small_map: (0..100).map(|_| None).collect(),
+            small_map: Vec::with_capacity(8),
         }
     }
 
     #[inline]
-    fn insert(&mut self, key: usize, value: Value) {
+    fn insert(&mut self, key: usize, value: Value) -> Option<()> {
         let len = self.small_map.len();
-        if len <= key {
-            self.small_map.extend((0..key - len + 1).map(|_| None));
+        if len != key {
+            return None
         }
-        self.small_map[key] = Some(value)
+        self.small_map.push(value);
+        Some(())
     }
 
     #[inline]
     pub fn get(&self, key: usize) -> Option<&Value> {
-        if key < self.small_map.len() {
-            match self.small_map[key] {
-              Some(ref value) => Some(value),
-              None => None
-            }
-        } else {
-            None
-        }
+        self.small_map.get(key)
     }
 }
 
@@ -196,7 +191,7 @@ impl Machine {
 
     fn handle_get(&mut self, i: usize) -> Result<(), Error> {
         let value = match self.memo.get(i) {
-            None => return Err(Error::InvalidMemoValue),
+            None => return Err(Error::InvalidGetValue),
             Some(ref v) => (*v).clone(),
         };
         self.stack.push(value);
