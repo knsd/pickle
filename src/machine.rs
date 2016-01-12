@@ -56,33 +56,6 @@ pub enum BooleanOrInt {
     Int(i64),
 }
 
-struct Memo {
-    small_map: Vec<Value>,
-}
-
-impl Memo {
-    fn new() -> Self {
-        Memo {
-            small_map: Vec::with_capacity(8),
-        }
-    }
-
-    #[inline]
-    fn insert(&mut self, key: usize, value: Value) -> Option<()> {
-        let len = self.small_map.len();
-        if len != key {
-            return None
-        }
-        self.small_map.push(value);
-        Some(())
-    }
-
-    #[inline]
-    pub fn get(&self, key: usize) -> Option<&Value> {
-        self.small_map.get(key)
-    }
-}
-
 fn read_exact<R>(rd: &mut R, mut buf: &mut [u8]) -> Result<(), IoError> where R: Read {
     while !buf.is_empty() {
         match rd.read(buf) {
@@ -156,7 +129,7 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
 
 pub struct Machine {
     stack: Vec<Value>,
-    memo: Memo,
+    memo: Vec<Value>,
     marker: Option<usize>,
 }
 
@@ -164,7 +137,7 @@ impl Machine {
     pub fn new() -> Self {
         Machine {
             stack: Vec::new(),
-            memo: Memo::new(),
+            memo: Vec::with_capacity(8),
             marker: None,
         }
     }
@@ -203,7 +176,11 @@ impl Machine {
             None => return Err(Error::EmptyStack),
             Some(ref v) => (*v).clone(),
         };
-        self.memo.insert(i, value);
+        let len = self.memo.len();
+        if len != i {
+            return Err(Error::InvalidPutValue)
+        }
+        self.memo.push(value);
         Ok(())
     }
 
