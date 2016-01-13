@@ -54,7 +54,10 @@ quick_error! {
         }
 
         InvalidProto(proto: u8)
-        NegativeLength
+        NegativeLength {}
+
+        #[doc(hidden)]
+        __Nonexhaustive
     }
 }
 
