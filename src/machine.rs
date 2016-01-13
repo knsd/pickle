@@ -145,7 +145,7 @@ impl Machine {
     pub fn new() -> Self {
         Machine {
             stack: Vec::new(),
-            memo: Vec::with_capacity(8),
+            memo: vec![Value::None],
             marker: None,
         }
     }
