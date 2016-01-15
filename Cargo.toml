@@ -3,6 +3,10 @@ name = "pickle"
 version = "0.1.0"
 license = "MIT/Apache-2.0"
 authors = ["Fedor Gogolev <knsd@knsd.net>"]
+description = "Deserialization of Python objects using the Pickle format."
+repository = "https://github.com/knsd/pickle"
+documentation = "http://knsd.github.io/pickle"
+readme = "README.md"
 
 [dependencies]
 num = "0.1.29"
