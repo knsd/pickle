@@ -8,6 +8,8 @@
 
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::string::{FromUtf8Error};
+use std::cell::{RefCell};
+use std::rc::{Rc};
 
 use num::{Zero};
 use num::bigint::{BigInt, ToBigInt, Sign};
@@ -139,8 +141,8 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
 }
 
 pub struct Machine {
-    stack: Vec<Value>,
-    memo: Vec<Value>,
+    stack: Vec<Rc<RefCell<Value>>>,
+    memo: Vec<Rc<RefCell<Value>>>,
     marker: Option<usize>,
 }
 

@@ -6,6 +6,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::cell::{RefCell};
+use std::rc::{Rc};
+
 use num::bigint::{BigInt};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -17,7 +20,7 @@ pub enum Value {
     Float(f64),
     String(Vec<u8>),
     Unicode(String),
-    List(Vec<Value>),
-    Tuple(Vec<Value>),
-    Dict(Vec<(Value, Value)>),
+    List(Vec<Rc<RefCell<Value>>>),
+    Tuple(Vec<Rc<RefCell<Value>>>),
+    Dict(Vec<(Rc<RefCell<Value>>, Rc<RefCell<Value>>)>),
 }
