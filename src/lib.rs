@@ -22,14 +22,15 @@ mod string;
 
 use std::io::{Read, BufRead};
 
-pub fn unpickle<R>(rd: &mut R) -> Result<value::Value, machine::Error> where R: Read + BufRead {
+pub fn unpickle<R>(rd: &mut R) -> Result<(), machine::Error> where R: Read + BufRead {
     let mut machine = machine::Machine::new();
     loop {
         if try!(machine.execute(rd)) {
             break
         }
     }
-    Ok(try!(machine.pop()))
+    Ok(())
+    // Ok(try!(machine.pop()))
 }
 
 #[cfg(test)]

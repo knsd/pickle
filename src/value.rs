@@ -11,7 +11,7 @@ use std::rc::{Rc};
 
 use num::bigint::{BigInt};
 
-#[derive(Debug, PartialEq, PartialOrd, Clone)]
+#[derive(Debug, Clone)]
 pub enum Value {
     None,
     Bool(bool),
