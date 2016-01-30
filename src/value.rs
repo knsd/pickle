@@ -20,7 +20,7 @@ pub enum Value {
     Float(f64),
     String(Vec<u8>),
     Unicode(String),
-    List(Vec<Rc<RefCell<Value>>>),
-    Tuple(Vec<Rc<RefCell<Value>>>),
-    Dict(Vec<(Rc<RefCell<Value>>, Rc<RefCell<Value>>)>),
+    List(Rc<RefCell<Vec<Value>>>),
+    Tuple(Rc<RefCell<Vec<Value>>>),
+    Dict(Rc<RefCell<Vec<(Value, Value)>>>),
 }
