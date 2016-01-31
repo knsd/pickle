@@ -145,8 +145,8 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
 }
 
 pub struct Machine {
-    stack: Vec<Rc<RefCell<Value>>>,
-    memo: Vec<Rc<RefCell<Value>>>,
+    stack: Vec<Value>,
+    memo: Vec<Value>,
     marker: Option<usize>,
 }
 
@@ -154,12 +154,12 @@ impl Machine {
     pub fn new() -> Self {
         Machine {
             stack: Vec::new(),
-            memo: vec![rc!(Value::None)],
+            memo: vec![Value::None],
             marker: None,
         }
     }
 
-    fn split_off(&mut self) -> Result<Vec<Rc<RefCell<Value>>>, Error> {
+    fn split_off(&mut self) -> Result<Vec<Value>, Error> {
         let at = match self.marker {
             None => return Err(Error::EmptyMarker),
             Some(marker) => marker,
@@ -172,7 +172,7 @@ impl Machine {
         Ok(self.stack.split_off(at))
     }
 
-    pub fn pop(&mut self) -> Result<Rc<RefCell<Value>>, Error> {
+    pub fn pop(&mut self) -> Result<Value, Error> {
         match self.stack.pop() {
             None => return Err(Error::EmptyStack),
             Some(value) => Ok(value),
@@ -221,114 +221,110 @@ impl Machine {
             STOP => return Ok(true),
 
             INT => {
-                self.stack.push(rc!(match try!(read_decimal_int(rd)) {
+                self.stack.push(match try!(read_decimal_int(rd)) {
                     BooleanOrInt::Boolean(v) => Value::Bool(v),
                     BooleanOrInt::Int(v) => Value::Long(BigInt::from(v)),
-                }))
+                })
             },
-            BININT => self.stack.push(rc!(Value::Int(try!(rd.read_i32::<LittleEndian>()) as usize))),
-            BININT1 => self.stack.push(rc!(Value::Int(try!(rd.read_u8()) as usize))),
-            BININT2 => self.stack.push(rc!(Value::Int(try!(rd.read_u16::<LittleEndian>()) as usize))),
-            LONG => self.stack.push(rc!(Value::Long(BigInt::from(try!(read_decimal_long(rd)))))),
+            BININT => self.stack.push(Value::Int(try!(rd.read_i32::<LittleEndian>()) as usize)),
+            BININT1 => self.stack.push(Value::Int(try!(rd.read_u8()) as usize)),
+            BININT2 => self.stack.push(Value::Int(try!(rd.read_u16::<LittleEndian>()) as usize)),
+            LONG => self.stack.push(Value::Long(BigInt::from(try!(read_decimal_long(rd))))),
             LONG1 => {
                 let length = try!(rd.read_u8());
-                self.stack.push(rc!(Value::Long(BigInt::from(try!(read_long(rd, length as usize))))))
+                self.stack.push(Value::Long(BigInt::from(try!(read_long(rd, length as usize)))))
             }
             LONG4 => {
                 let length = try!(rd.read_i32::<LittleEndian>());
-                self.stack.push(rc!(Value::Long(BigInt::from(try!(read_long(rd, length as usize))))))
+                self.stack.push(Value::Long(BigInt::from(try!(read_long(rd, length as usize)))))
             }
 
-            STRING => self.stack.push(rc!(Value::String(try!(unescape(&try!(read_until_newline(rd)), false))))),
+            STRING => self.stack.push(Value::String(try!(unescape(&try!(read_until_newline(rd)), false)))),
             BINSTRING => {
                 let length = try!(rd.read_i32::<LittleEndian>());
                 ensure_not_negative!(length);
 
                 let mut buf = vec![0; length as usize];
                 try!(read_exact(rd, &mut buf));
-                self.stack.push(rc!(Value::String(buf)))
+                self.stack.push(Value::String(buf))
             },
             SHORT_BINSTRING => {
                 let length = try!(rd.read_u8());
                 let mut buf = vec![0; length as usize];
                 try!(read_exact(rd, &mut buf));
-                self.stack.push(rc!(Value::String(buf)))
+                self.stack.push(Value::String(buf))
             },
 
-            NONE => self.stack.push(rc!(Value::None)),
-            NEWTRUE => self.stack.push(rc!(Value::Bool(true))),
-            NEWFALSE => self.stack.push(rc!(Value::Bool(false))),
+            NONE => self.stack.push(Value::None),
+            NEWTRUE => self.stack.push(Value::Bool(true)),
+            NEWFALSE => self.stack.push(Value::Bool(false)),
 
             UNICODE => {
                 let buf = try!(unescape(&try!(read_until_newline(rd)), true));
-                self.stack.push(rc!(Value::Unicode(try!(String::from_utf8(buf)))))
+                self.stack.push(Value::Unicode(try!(String::from_utf8(buf))))
             },
             BINUNICODE => {
                 let length = try!(rd.read_i32::<LittleEndian>());
                 ensure_not_negative!(length);
                 let mut buf = vec![0; length as usize];
                 try!(read_exact(rd, buf.as_mut()));
-                self.stack.push(rc!(Value::Unicode(try!(String::from_utf8(buf)))))
+                self.stack.push(Value::Unicode(try!(String::from_utf8(buf))))
             },
 
             FLOAT => {
                 let s = try!(read_until_newline(rd));
-                self.stack.push(rc!(Value::Float(try!(f64::from_ascii(&s)))))
+                self.stack.push(Value::Float(try!(f64::from_ascii(&s))))
             },
             BINFLOAT => {
-                self.stack.push(rc!(Value::Float(try!(rd.read_f64::<BigEndian>()))))
+                self.stack.push(Value::Float(try!(rd.read_f64::<BigEndian>())))
             },
 
             EMPTY_LIST => {
-                self.stack.push(rc!(Value::List(Vec::new())))
+                self.stack.push(Value::List(rc!(Vec::new())))
             },
             APPEND => {
                 let v = try!(self.pop());
                 match self.stack.last_mut() {
                     None => return Err(Error::EmptyStack),
-                    Some(ref mut rc) => match *rc.borrow_mut() {
-                        Value::List(ref mut list) => list.push(v),
-                        _ => return Err(Error::InvalidValueOnStack),
-                    },
+                    Some(&mut Value::List(ref mut list)) => (*list.borrow_mut()).push(v),
+                    _ => return Err(Error::InvalidValueOnStack),
                 }
             },
             APPENDS => {
                 let values = try!(self.split_off());
                 match self.stack.last_mut() {
                     None => return Err(Error::EmptyStack),
-                    Some(ref mut rc) => match *rc.borrow_mut() {
-                        Value::List(ref mut list) => list.extend(values),
-                        _ => return Err(Error::InvalidValueOnStack),
-                    },
+                    Some(&mut Value::List(ref mut list)) => (*list.borrow_mut()).extend(values),
+                    _ => return Err(Error::InvalidValueOnStack),
                 }
             },
             LIST => {
                 let values = try!(self.split_off());
-                self.stack.push(rc!(Value::List(values)));
+                self.stack.push(Value::List(rc!(values)));
             },
 
-            EMPTY_TUPLE => self.stack.push(rc!(Value::Tuple(Vec::new()))),
+            EMPTY_TUPLE => self.stack.push(Value::Tuple(rc!(Vec::new()))),
             TUPLE => {
                 let values = try!(self.split_off());
-                self.stack.push(rc!(Value::Tuple(values)));
+                self.stack.push(Value::Tuple(rc!(values)));
             },
             TUPLE1 => {
                 let v1 = try!(self.pop());
-                self.stack.push(rc!(Value::Tuple(vec![v1])))
+                self.stack.push(Value::Tuple(rc!(vec![v1])))
             },
             TUPLE2 => {
                 let v1 = try!(self.pop());
                 let v2 = try!(self.pop());
-                self.stack.push(rc!(Value::Tuple(vec![v1, v2])))
+                self.stack.push(Value::Tuple(rc!(vec![v1, v2])))
             },
             TUPLE3 => {
                 let v1 = try!(self.pop());
                 let v2 = try!(self.pop());
                 let v3 = try!(self.pop());
-                self.stack.push(rc!(Value::Tuple(vec![v1, v2, v3])))
+                self.stack.push(Value::Tuple(rc!(vec![v1, v2, v3])))
             }
 
-            EMPTY_DICT => self.stack.push(rc!(Value::Dict(Vec::new()))),
+            EMPTY_DICT => self.stack.push(Value::Dict(rc!(Vec::new()))),
             DICT => {
                 let mut values = try!(self.split_off());
                 let mut dict = Vec::new();
@@ -338,36 +334,36 @@ impl Machine {
                     let value = values.remove(2 * i + 1);
                     dict.push((key, value));
                 }
-                self.stack.push(rc!(Value::Dict(dict)));
+                self.stack.push(Value::Dict(rc!(dict)));
             },
-            SETITEM => {
-                let value = try!(self.pop());
-                let key = try!(self.pop());
-                match self.stack.last_mut() {
-                    None => return Err(Error::EmptyStack),
-                    Some(ref mut rc) => match *rc.borrow_mut() {
-                        Value::Dict(ref mut dict) => dict.push((key, value)),
-                        _ => return Err(Error::InvalidValueOnStack),
-                    },
-                }
-            },
-            SETITEMS => {
-                let mut values = try!(self.split_off());
+            // SETITEM => {
+            //     let value = try!(self.pop());
+            //     let key = try!(self.pop());
+            //     match self.stack.last_mut() {
+            //         None => return Err(Error::EmptyStack),
+            //         Some(ref mut rc) => match *rc.borrow_mut() {
+            //             Value::Dict(ref mut dict) => dict.push((key, value)),
+            //             _ => return Err(Error::InvalidValueOnStack),
+            //         },
+            //     }
+            // },
+            // SETITEMS => {
+            //     let mut values = try!(self.split_off());
 
-                match self.stack.last_mut() {
-                    None => return Err(Error::EmptyStack),
-                    Some(ref mut rc) => match *rc.borrow_mut() {
-                        Value::Dict(ref mut dict) => {
-                            for i in 0 .. values.len() / 2 { // TODO: Check panic
-                                let key = values.remove(2 * i);
-                                let value = values.remove(2 * i + 1);
-                                dict.push((key, value));
-                            }
-                        },
-                        _ => return Err(Error::InvalidValueOnStack),
-                    },
-                }
-            },
+            //     match self.stack.last_mut() {
+            //         None => return Err(Error::EmptyStack),
+            //         Some(ref mut rc) => match *rc.borrow_mut() {
+            //             Value::Dict(ref mut dict) => {
+            //                 for i in 0 .. values.len() / 2 { // TODO: Check panic
+            //                     let key = values.remove(2 * i);
+            //                     let value = values.remove(2 * i + 1);
+            //                     dict.push((key, value));
+            //                 }
+            //             },
+            //             _ => return Err(Error::InvalidValueOnStack),
+            //         },
+            //     }
+            // },
 
             POP => {
                 try!(self.pop());
