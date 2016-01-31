@@ -336,34 +336,30 @@ impl Machine {
                 }
                 self.stack.push(Value::Dict(rc!(dict)));
             },
-            // SETITEM => {
-            //     let value = try!(self.pop());
-            //     let key = try!(self.pop());
-            //     match self.stack.last_mut() {
-            //         None => return Err(Error::EmptyStack),
-            //         Some(ref mut rc) => match *rc.borrow_mut() {
-            //             Value::Dict(ref mut dict) => dict.push((key, value)),
-            //             _ => return Err(Error::InvalidValueOnStack),
-            //         },
-            //     }
-            // },
-            // SETITEMS => {
-            //     let mut values = try!(self.split_off());
+            SETITEM => {
+                let value = try!(self.pop());
+                let key = try!(self.pop());
+                match self.stack.last_mut() {
+                    None => return Err(Error::EmptyStack),
+                    Some(&mut Value::Dict(ref mut dict)) => (*dict.borrow_mut()).push((key, value)),
+                    _ => return Err(Error::InvalidValueOnStack),
+                }
+            },
+            SETITEMS => {
+                let mut values = try!(self.split_off());
 
-            //     match self.stack.last_mut() {
-            //         None => return Err(Error::EmptyStack),
-            //         Some(ref mut rc) => match *rc.borrow_mut() {
-            //             Value::Dict(ref mut dict) => {
-            //                 for i in 0 .. values.len() / 2 { // TODO: Check panic
-            //                     let key = values.remove(2 * i);
-            //                     let value = values.remove(2 * i + 1);
-            //                     dict.push((key, value));
-            //                 }
-            //             },
-            //             _ => return Err(Error::InvalidValueOnStack),
-            //         },
-            //     }
-            // },
+                match self.stack.last_mut() {
+                    None => return Err(Error::EmptyStack),
+                    Some(&mut Value::Dict(ref mut dict_ref)) => {
+                        for i in 0 .. values.len() / 2 { // TODO: Check panic
+                                let key = values.remove(2 * i);
+                                let value = values.remove(2 * i + 1);
+                                (*dict_ref.borrow_mut()).push((key, value));
+                            }
+                    },
+                    _ => return Err(Error::InvalidValueOnStack),
+                }
+            },
 
             POP => {
                 try!(self.pop());
