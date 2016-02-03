@@ -15,7 +15,7 @@ use num::bigint::{BigInt};
 pub enum Value {
     None,
     Bool(bool),
-    Int(usize),
+    Int(isize),
     Long(BigInt),
     Float(f64),
     String(Vec<u8>),
