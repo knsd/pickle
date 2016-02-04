@@ -8,6 +8,7 @@
 
 use std::io::{Read, BufRead, Error as IoError, ErrorKind};
 use std::string::{FromUtf8Error};
+use std::collections::{HashMap};
 use std::cell::{RefCell};
 use std::rc::{Rc};
 
@@ -146,7 +147,7 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
 
 pub struct Machine {
     stack: Vec<Value>,
-    memo: Vec<Value>,
+    memo: HashMap<usize, Value>,
     marker: Option<usize>,
 }
 
@@ -154,7 +155,7 @@ impl Machine {
     pub fn new() -> Self {
         Machine {
             stack: Vec::new(),
-            memo: vec![Value::None],
+            memo: HashMap::new(),
             marker: None,
         }
     }
@@ -180,7 +181,7 @@ impl Machine {
     }
 
     fn handle_get(&mut self, i: usize) -> Result<(), Error> {
-        let value = match self.memo.get(i) {
+        let value = match self.memo.get(&i) {
             None => return Err(Error::InvalidGetValue),
             Some(ref v) => (*v).clone(),
         };
@@ -193,11 +194,7 @@ impl Machine {
             None => return Err(Error::EmptyStack),
             Some(ref v) => (*v).clone(),
         };
-        let len = self.memo.len();
-        if len != i {
-            return Err(Error::InvalidPutValue)
-        }
-        self.memo.push(value);
+        self.memo.insert(i, value);
         Ok(())
     }
 
