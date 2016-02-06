@@ -1,4 +1,3 @@
-#![feature(test)]
 
 use std::io::{Cursor};
 
