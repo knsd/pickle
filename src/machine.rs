@@ -173,7 +173,7 @@ impl Machine {
         Ok(self.stack.split_off(at))
     }
 
-    pub fn pop(&mut self) -> Result<Value, Error> {
+    fn pop(&mut self) -> Result<Value, Error> {
         match self.stack.pop() {
             None => return Err(Error::EmptyStack),
             Some(value) => Ok(value),
