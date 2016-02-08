@@ -416,3 +416,13 @@ impl Machine {
         Ok(false)
     }
 }
+
+pub fn unpickle<R>(rd: &mut R) -> Result<Value, Error> where R: Read + BufRead {
+    let mut machine = Machine::new();
+    loop {
+        if try!(machine.execute(rd)) {
+            break
+        }
+    }
+    Ok(try!(machine.pop()))
+}
