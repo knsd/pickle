@@ -15,11 +15,8 @@ extern crate byteorder;
 extern crate from_ascii;
 extern crate unicode_names;
 
-#[allow(dead_code)]
 pub mod opcodes;
-#[allow(dead_code)]
 pub mod value;
-#[allow(dead_code)]
 pub mod machine;
 mod string;
 
