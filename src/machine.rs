@@ -175,7 +175,7 @@ impl Machine {
 
     fn pop(&mut self) -> Result<Value, Error> {
         match self.stack.pop() {
-            None => return Err(Error::EmptyStack),
+            None => Err(Error::EmptyStack),
             Some(value) => Ok(value),
         }
     }
