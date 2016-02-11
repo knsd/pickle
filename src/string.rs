@@ -42,7 +42,7 @@ pub fn unescape(s: &[u8], unicode: bool) -> Result<Vec<u8>, Error> {
 
     macro_rules! peek {
         () => ({
-            s.get(i).map(|c| *c)
+            s.get(i).cloned()
         })
     }
 
