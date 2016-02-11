@@ -98,7 +98,7 @@ fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + B
     // Skip last symbol — \n
     match buf.split_last() {
         Some((&b'\n', init)) => Ok(init.to_vec()),
-        _ => return Err(Error::InvalidString),
+        _ => Err(Error::InvalidString),
     }
 }
 
