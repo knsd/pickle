@@ -207,8 +207,7 @@ impl Machine {
             })
         }
 
-        let marker = try!(rd.read_u8());
-        match marker {
+        match try!(rd.read_u8()) {
             PROTO => {
                 let version = try!(rd.read_u8());
                 if version < 2 {
