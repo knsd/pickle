@@ -41,6 +41,6 @@ env:
     - TRAVIS_CARGO_NIGHTLY_FEATURE=""
     - secure: "PRT1wcUm9G5iqZmxVHVCukv+y8g1hkJ4QHu8bqKTshfV08Tr1akb+uXmn9/R+uhLAScVucV51yhxU/Fw7E7H1Tz1xtsurNZNiGZwhLcuSrbCUQIgHfPMvnQNGulCakaK7zoeak0Xa986I1Ohole7aimhHNBFUoHmyQgiHHtssPWoVHQyxyIjYfKq6UofDl2qQMKGl3gZPEUoBb2um2lDsTqvJfDmKv3lfJ+fuFU5TTkS1wAR28uGLTH747BrhjL6XD23OZ6KKHJKM5mG5UKqP2OCI05O0DYEF1TLksAzTafuvfwnGgTr6pPY5xi9V2s+gWYgcB0iHFns+r0ydVR3Gzr3KlxV/Hx8y2zxwnpR29RGu9B+Rsvx2Lv9+PyyNNyn9IUvIpskLAS3MhZduxRCE6plf5Up+r3V4Lyc6D3aqBIOjBH0qJT+OSRRjzU5kZ6x7QLGKm3PWUfscgZVCtVP81ktkmkltMI1RSB/POBHT0AV/I/gIje3IXQe0MfFaz/CgjcVycj2+GSOBVOqkHEG0LtV3vCbkYR/dfz6IvMs8l1DmxW9BprOnablQKyu/6ZXTrhjZdGkIF3yQg0NcfyjorcoQwJmUga+VBM/MO/VoVeuwbE4s4prgeuBd4ikVCHJlY16z9J6G7284vcSI1Vqq/xpazJjepgqvpsHPV84QbA="
 
-notifications:
-    webhooks:
-        - http://tg.thesharp.org:8888/travis
+# notifications:
+#    webhooks:
+#        - http://tg.thesharp.org:8888/travis
