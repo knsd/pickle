@@ -219,7 +219,7 @@ impl Machine {
             INT => {
                 self.stack.push(match try!(read_decimal_int(rd)) {
                     BooleanOrInt::Boolean(v) => Value::Bool(v),
-                    BooleanOrInt::Int(v) => Value::Long(BigInt::from(v)),
+                    BooleanOrInt::Int(v) => Value::Long(BigInt::from(v)), // FIXME: or int?
                 })
             },
             BININT => self.stack.push(Value::Int(try!(rd.read_i32::<LittleEndian>()) as isize)),
@@ -461,5 +461,12 @@ mod tests {
 
     macro_rules! n {
         ($x: expr) => ({FromPrimitive::from_isize($x).unwrap()})
+    }
+
+    #[test]
+    fn test_int() {
+        t!(b"I1\n.", Value::Long(n), assert_eq!(n, n!(1)));
+        t!(b"K\x01.", Value::Int(n), assert_eq!(n, 1));
+        t!(b"\x80\x02K\x01.", Value::Int(n), assert_eq!(n, 1));
     }
 }
