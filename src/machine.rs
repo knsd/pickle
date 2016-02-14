@@ -425,3 +425,41 @@ pub fn unpickle<R>(rd: &mut R) -> Result<Value, Error> where R: Read + BufRead {
     }
     Ok(try!(machine.pop()))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Cursor};
+
+    use num::{FromPrimitive};
+
+    use super::{unpickle};
+    use super::super::value::{Value};
+
+    macro_rules! t {
+        ($buffer: expr, $pat:pat, $result:expr) => ({
+            match unpickle(&mut Cursor::new(&$buffer[..])) {
+                Ok($pat) => $result,
+                other => {
+                    println!("ERROR {:?}", other);
+                    assert!(false)
+                },
+            }
+        })
+    }
+
+    macro_rules! e {
+        ($buffer: expr, $pat:pat) => ({
+            match unpickle(&mut Cursor::new(&$buffer[..])) {
+                Err($pat) => (),
+                other => {
+                    println!("ERROR {:?}", other);
+                    assert!(false)
+                },
+            }
+        })
+    }
+
+    macro_rules! n {
+        ($x: expr) => ({FromPrimitive::from_isize($x).unwrap()})
+    }
+}
