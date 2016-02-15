@@ -479,4 +479,11 @@ mod tests {
         t!(b"\x80\x02\x88.", Value::Bool(true), ());
         t!(b"\x80\x02N.", Value::None, ());
     }
+
+    #[test]
+    fn test_string() {
+        // t!(b"S'foo'\np1\n.", Value::String(s), assert_eq!(s, b"foo"));  // FIXME: BROKEN
+        // t!(b"Ufooq.", Value::String(s), assert_eq!(s, b"foo"));  // FIXME: BROKEN
+        t!(b"\x80\x02U\x03fooq\x01.", Value::String(s), assert_eq!(s, b"foo"));
+    }
 }
