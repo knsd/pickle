@@ -486,4 +486,11 @@ mod tests {
         // t!(b"Ufooq.", Value::String(s), assert_eq!(s, b"foo"));  // FIXME: BROKEN
         t!(b"\x80\x02U\x03fooq\x01.", Value::String(s), assert_eq!(s, b"foo"));
     }
+
+    #[test]
+    fn test_unicode() {
+        t!(b"Vfoo\np1\n.", Value::Unicode(s), assert_eq!(s, "foo"));
+        t!(b"X\x03\x00\x00\x00fooq\x01.", Value::Unicode(s), assert_eq!(s, "foo"));
+        t!(b"\x80\x02X\x03\x00\x00\x00fooq\x01.", Value::Unicode(s), assert_eq!(s, "foo"));
+    }
 }
