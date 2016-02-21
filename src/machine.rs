@@ -145,6 +145,16 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
     Ok(n)
 }
 
+fn read_bracketed_string<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
+    let s = try!(read_until_newline(rd));
+    // Skip last and first symbols — '
+    if s.len() < 2 {
+        return Err(Error::InvalidString)
+    }
+
+    Ok(try!(unescape(&s[1..s.len() - 1], false)))
+}
+
 pub struct Machine {
     stack: Vec<Value>,
     memo: HashMap<usize, Value>,
@@ -235,7 +245,7 @@ impl Machine {
                 self.stack.push(Value::Long(BigInt::from(try!(read_long(rd, length as usize)))))
             }
 
-            STRING => self.stack.push(Value::String(try!(unescape(&try!(read_until_newline(rd)), false)))),
+            STRING => self.stack.push(Value::String(try!(read_bracketed_string(rd)))),
             BINSTRING => {
                 let length = try!(rd.read_i32::<LittleEndian>());
                 ensure_not_negative!(length);
@@ -482,7 +492,8 @@ mod tests {
 
     #[test]
     fn test_string() {
-        // t!(b"S'foo'\np1\n.", Value::String(s), assert_eq!(s, b"foo"));  // FIXME: BROKEN
+        t!(b"S''\np1\n.", Value::String(s), assert_eq!(s, b""));
+        t!(b"S'foo'\np1\n.", Value::String(s), assert_eq!(s, b"foo"));
         t!(b"U\x03fooq\x01.", Value::String(s), assert_eq!(s, b"foo"));
         t!(b"\x80\x02U\x03fooq\x01.", Value::String(s), assert_eq!(s, b"foo"));
     }
