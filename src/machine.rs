@@ -483,9 +483,10 @@ mod tests {
     fn test_const() {
         t!(b"I00\n.", Value::Bool(false), ());
         t!(b"I01\n.", Value::Bool(true), ());
-        t!(b"N.", Value::None, ());
         t!(b"\x80\x02\x89.", Value::Bool(false), ());
         t!(b"\x80\x02\x88.", Value::Bool(true), ());
+
+        t!(b"N.", Value::None, ());
         t!(b"\x80\x02N.", Value::None, ());
     }
 
