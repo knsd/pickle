@@ -495,6 +495,8 @@ mod tests {
         t!(b"S'foo'\np1\n.", Value::String(s), assert_eq!(s, b"foo"));
         t!(b"U\x03fooq\x01.", Value::String(s), assert_eq!(s, b"foo"));
         t!(b"\x80\x02U\x03fooq\x01.", Value::String(s), assert_eq!(s, b"foo"));
+
+        t!(b"S'\\n'\np1\n.", Value::String(s), assert_eq!(s, b"\n"));
     }
 
     #[test]
