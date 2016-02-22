@@ -31,7 +31,6 @@ quick_error! {
         InvalidValueOnStack
         InvalidGetValue
         InvalidPutValue
-        NotImplemented
 
         Read(err: ByteorderError) {
             from()
