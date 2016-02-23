@@ -513,4 +513,28 @@ mod tests {
     fn test_unknown_opcode() {
         e!(b"\xff", Error::UnknownOpcode(255))
     }
+
+    #[test]
+    fn test_invalid_int() {
+        e!(b"I1000000000000000000000000000000\n.", Error::InvalidInt);  // TODO: Should be long?
+
+        // Int
+        e!(b"I\n.", Error::InvalidInt);
+        e!(b"I0.0\n.", Error::InvalidInt);
+        e!(b"I0.1\n.", Error::InvalidInt);
+        e!(b"Ia\n.", Error::InvalidInt);
+        e!(b"I\n\n.", Error::InvalidInt);
+        // Get
+        e!(b"g\n.", Error::InvalidInt);
+        e!(b"g0.0\n.", Error::InvalidInt);
+        e!(b"g0.1\n.", Error::InvalidInt);
+        e!(b"ga\n.", Error::InvalidInt);
+        e!(b"g\n\n.", Error::InvalidInt);
+        // Put
+        e!(b"p\n.", Error::InvalidInt);
+        e!(b"p0.0\n.", Error::InvalidInt);
+        e!(b"p0.1\n.", Error::InvalidInt);
+        e!(b"pa\n.", Error::InvalidInt);
+        e!(b"p\n\n.", Error::InvalidInt);
+    }
 }
