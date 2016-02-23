@@ -114,7 +114,7 @@ fn read_decimal_int<R>(rd: &mut R) -> Result<BooleanOrInt, Error> where R: Read 
 fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + BufRead {
     let s = try!(read_until_newline(rd));
     let init = match s.split_last() {
-        None => return Err(Error::InvalidString),
+        None => return Err(Error::InvalidLong),
         Some((&b'L', init)) => init,
         Some(_) => &s[..],
     };
