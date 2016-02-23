@@ -138,7 +138,7 @@ fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Rea
     };
 
     if *last > 127 {
-        n = n - (1.to_bigint().unwrap() << (length * 8))
+        n = n - (1.to_bigint().unwrap() << (length * 8))  // TODO: remove unwrap()
     }
 
     Ok(n)
