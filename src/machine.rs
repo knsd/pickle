@@ -537,4 +537,18 @@ mod tests {
         e!(b"pa\n.", Error::InvalidInt);
         e!(b"p\n\n.", Error::InvalidInt);
     }
+
+    #[test]
+    fn test_invalid_long() {
+        // LONG
+        e!(b"L\n.", Error::InvalidLong);
+        e!(b"L0.0\n.", Error::InvalidLong);
+        e!(b"L0.1\n.", Error::InvalidLong);
+        e!(b"La\n.", Error::InvalidLong);
+        e!(b"L\n\n.", Error::InvalidLong);
+        // LONG1
+        e!(b"\x8a\x00.", Error::InvalidLong);
+        // LONG4
+        e!(b"\x8b\x00\x00\x00\x00.", Error::InvalidLong);
+    }
 }
