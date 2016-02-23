@@ -441,7 +441,7 @@ mod tests {
 
     use num::{FromPrimitive};
 
-    use super::{unpickle};
+    use super::{Error, unpickle};
     use super::super::value::{Value};
 
     macro_rules! t {
@@ -505,5 +505,12 @@ mod tests {
         t!(b"Vfoo\np1\n.", Value::Unicode(s), assert_eq!(s, "foo"));
         t!(b"X\x03\x00\x00\x00fooq\x01.", Value::Unicode(s), assert_eq!(s, "foo"));
         t!(b"\x80\x02X\x03\x00\x00\x00fooq\x01.", Value::Unicode(s), assert_eq!(s, "foo"));
+    }
+
+    // Errors
+
+    #[test]
+    fn test_unknown_opcode() {
+        e!(b"\xff", Error::UnknownOpcode(255))
     }
 }
