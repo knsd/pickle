@@ -551,4 +551,11 @@ mod tests {
         // LONG4
         e!(b"\x8b\x00\x00\x00\x00.", Error::InvalidLong);
     }
+
+    #[test]
+    fn test_invalid_float() {
+        e!(b"F\n.", Error::InvalidFloat);
+        e!(b"Ffoo\n.", Error::InvalidFloat);
+        e!(b"F1.O\n.", Error::InvalidFloat);
+    }
 }
