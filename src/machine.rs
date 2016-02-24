@@ -558,4 +558,19 @@ mod tests {
         e!(b"Ffoo\n.", Error::InvalidFloat);
         e!(b"F1.O\n.", Error::InvalidFloat);
     }
+
+    #[test]
+    fn test_invalid_string() {
+        // String
+        e!("S", Error::InvalidString);
+        e!("S'\n", Error::InvalidString);
+        // Unicode
+        e!("V", Error::InvalidString);
+        // Int
+        e!(b"I", Error::InvalidString);
+        // Long
+        e!(b"L", Error::InvalidString);
+        // Float
+        e!(b"F", Error::InvalidString);
+    }
 }
