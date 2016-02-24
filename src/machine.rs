@@ -48,7 +48,8 @@ quick_error! {
             from(ParseFloatError)
         }
 
-        InvalidString {
+        InvalidString
+        UnicodeError {
             from(FromUtf8Error)
         }
         UnescapeError(err: UnescapeError) {
