@@ -562,16 +562,16 @@ mod tests {
 
     #[test]
     fn test_invalid_string() {
-        // String
+        // STRING
         e!("S", Error::InvalidString);
         e!("S'\n", Error::InvalidString);
-        // Unicode
+        // UNICODE
         e!("V", Error::InvalidString);
-        // Int
+        // INT
         e!(b"I", Error::InvalidString);
-        // Long
+        // LONG
         e!(b"L", Error::InvalidString);
-        // Float
+        // FLOAT
         e!(b"F", Error::InvalidString);
     }
 
