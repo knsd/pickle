@@ -574,4 +574,12 @@ mod tests {
         // Float
         e!(b"F", Error::InvalidString);
     }
+
+    #[test]
+    fn test_unicode_error() {
+        // UNICODE
+        e!(b"V\xe2\x28\xa1\n", Error::UnicodeError);
+        // BINUNICODE
+        e!(b"X\x03\x00\x00\x00\xe2\x28\xa1", Error::UnicodeError);
+    }
 }
