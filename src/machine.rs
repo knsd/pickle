@@ -220,7 +220,7 @@ impl Machine {
         match try!(rd.read_u8()) {
             PROTO => {
                 let version = try!(rd.read_u8());
-                if version < 2 {
+                if version < 2 || version > 2 {
                     return Err(Error::InvalidProto(version))
                 }
             },
