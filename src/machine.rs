@@ -582,4 +582,11 @@ mod tests {
         // BINUNICODE
         e!(b"X\x03\x00\x00\x00\xe2\x28\xa1", Error::UnicodeError);
     }
+
+    #[test]
+    fn test_invalid_proto() {
+        e!(b"\x80\x00", Error::InvalidProto(0));
+        e!(b"\x80\x01", Error::InvalidProto(1));
+        e!(b"\x80\x64", Error::InvalidProto(100));
+    }
 }
