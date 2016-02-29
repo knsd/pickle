@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["ParseFloatError","An error returned when parsing a floating value from a ascii string fails."]]});

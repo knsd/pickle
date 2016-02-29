@@ -1,0 +1,1 @@
+initSidebarItems({"trait":[["FromAscii","A trait to abstract the idea of creating a new instance of a type from a ascii string."]]});

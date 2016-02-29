@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["ParseIntError","An error returned when parsing a numeric value from a ascii string fails."]],"trait":[["FromAsciiRadix","A trait to abstract the idea of creating a new instance of a numeric type from a ascii string with given radix."]]});

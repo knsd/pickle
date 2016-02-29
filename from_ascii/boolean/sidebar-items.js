@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["ParseBoolError","An error returned when parsing a `bool` from a ascii string fails."]]});
