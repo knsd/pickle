@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::io::{Read, BufRead, Error as IoError, ErrorKind};
+use std::io::{Read, BufRead, Error as IoError};
 use std::string::{FromUtf8Error};
 use std::collections::{HashMap};
 use std::cell::{RefCell};
@@ -74,23 +74,6 @@ macro_rules! rc {
     ($term: expr) => (Rc::new(RefCell::new($term)))
 }
 
-fn read_exact<R>(rd: &mut R, mut buf: &mut [u8]) -> Result<(), IoError> where R: Read {
-    while !buf.is_empty() {
-        match rd.read(buf) {
-            Ok(0) => break,
-            Ok(n) => { let tmp = buf; buf = &mut tmp[n..]; }
-            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
-            Err(e) => return Err(e),
-        }
-    }
-    if !buf.is_empty() {
-        Err(IoError::new(ErrorKind::Other,
-                       "failed to fill whole buffer"))
-    } else {
-        Ok(())
-    }
-}
-
 fn read_until_newline<R>(rd: &mut R) -> Result<Vec<u8>, Error> where R: Read + BufRead {
     let mut buf = Vec::new();
     try!(rd.read_until('\n' as u8, &mut buf));
@@ -129,7 +112,7 @@ fn read_decimal_long<R>(rd: &mut R) -> Result<BigInt, Error> where R: Read + Buf
 
 fn read_long<R>(rd: &mut R, length: usize) -> Result<BigInt, Error> where R: Read + BufRead {
     let mut buf = vec![0; length];
-    try!(read_exact(rd, buf.as_mut()));
+    try!(rd.read_exact(buf.as_mut()));
 
     let mut n = BigInt::from_bytes_le(Sign::Plus, &buf);
 
@@ -251,13 +234,13 @@ impl Machine {
                 ensure_not_negative!(length);
 
                 let mut buf = vec![0; length as usize];
-                try!(read_exact(rd, &mut buf));
+                try!(rd.read_exact(&mut buf));
                 self.stack.push(Value::String(buf))
             },
             SHORT_BINSTRING => {
                 let length = try!(rd.read_u8());
                 let mut buf = vec![0; length as usize];
-                try!(read_exact(rd, &mut buf));
+                try!(rd.read_exact(&mut buf));
                 self.stack.push(Value::String(buf))
             },
 
@@ -273,7 +256,7 @@ impl Machine {
                 let length = try!(rd.read_i32::<LittleEndian>());
                 ensure_not_negative!(length);
                 let mut buf = vec![0; length as usize];
-                try!(read_exact(rd, buf.as_mut()));
+                try!(rd.read_exact(buf.as_mut()));
                 self.stack.push(Value::Unicode(try!(String::from_utf8(buf))))
             },
 
